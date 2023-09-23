@@ -312,8 +312,8 @@ STATUS createDtlsSession(PDtlsSessionCallbacks pDtlsSessionCallbacks, TIMER_QUEU
         }
     }
 
-    CHK_STATUS(createSslCtx(certInfos, pDtlsSession->certificateCount, &pDtlsSession->pSslCtx));
-    CHK_STATUS(createSsl(pDtlsSession->pSslCtx, &pDtlsSession->pSsl));
+    PROFILE_CALL(CHK_STATUS(createSslCtx(certInfos, pDtlsSession->certificateCount, &pDtlsSession->pSslCtx)), "SSL CTX creation time");
+    PROFILE_CALL(CHK_STATUS(createSsl(pDtlsSession->pSslCtx, &pDtlsSession->pSsl)), "SSL creation time");
 
     // Generate and store the certificate fingerprints
     CHK_STATUS(dtlsGenerateCertificateFingerprints(pDtlsSession, certInfos));
@@ -381,14 +381,26 @@ STATUS dtlsSessionStart(PDtlsSession pDtlsSession, BOOL isServer)
     } else {
         SSL_set_connect_state(pDtlsSession->pSsl);
     }
-    sslRet = SSL_do_handshake(pDtlsSession->pSsl);
-    if (sslRet <= 0) {
-        LOG_OPENSSL_ERROR("SSL_do_handshake");
-    }
 
     pDtlsSession->dtlsSessionStartTime = GETTIME();
-    CHK_STATUS(timerQueueAddTimer(pDtlsSession->timerQueueHandle, DTLS_SESSION_TIMER_START_DELAY, DTLS_TRANSMISSION_INTERVAL,
-                                  dtlsTransmissionTimerCallback, (UINT64) pDtlsSession, &pDtlsSession->timerId));
+    sslRet = SSL_do_handshake(pDtlsSession->pSsl);
+    if (sslRet <= 0) {
+        DLOGI("Failed to complete handshake..but let it go on");
+        pDtlsSession->dstate = DTLS_STATE_HANDSHAKE_IN_PROGRESS;
+        sslErr = SSL_get_error(pDtlsSession->pSsl, sslRet);
+        if (sslErr == SSL_ERROR_WANT_READ || sslErr == SSL_ERROR_WANT_WRITE) {
+            // If OpenSSL wants to read or write, it's an indication we should check the BIO
+            CHK_STATUS(dtlsCheckOutgoingDataBuffer(pDtlsSession));
+        } else {
+            // Handle other errors
+            LOG_OPENSSL_ERROR("SSL_do_handshake");
+        }
+    } else {
+        pDtlsSession->dstate = DTLS_STATE_HANDSHAKE_COMPLETED;
+    }
+
+//    CHK_STATUS(timerQueueAddTimer(pDtlsSession->timerQueueHandle, DTLS_SESSION_TIMER_START_DELAY, DTLS_TRANSMISSION_INTERVAL,
+//                                  dtlsTransmissionTimerCallback, (UINT64) pDtlsSession, &pDtlsSession->timerId));
 
 CleanUp:
 
@@ -450,7 +462,7 @@ STATUS dtlsSessionProcessPacket(PDtlsSession pDtlsSession, PBYTE pData, PINT32 p
 
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
-
+    DLOGI("Processing the incoming dtls packet");
     sslRet = BIO_write(SSL_get_rbio(pDtlsSession->pSsl), pData, *pDataLen);
     if (sslRet <= 0) {
         LOG_OPENSSL_ERROR("BIO_write");
@@ -460,19 +472,33 @@ STATUS dtlsSessionProcessPacket(PDtlsSession pDtlsSession, PBYTE pData, PINT32 p
     ERR_clear_error();
     sslRet = SSL_read(pDtlsSession->pSsl, pData, *pDataLen);
 
-    if (sslRet == 0 && SSL_get_error(pDtlsSession->pSsl, sslRet) == SSL_ERROR_ZERO_RETURN) {
-        DLOGI("Detected DTLS close_notify alert");
-        isClosed = TRUE;
-    } else if (sslRet <= 0) {
-        LOG_OPENSSL_ERROR("SSL_read");
-    }
+    DLOGI("Incoming state: %d", pDtlsSession->dstate);
+    switch (pDtlsSession->dstate) {
+        case DTLS_STATE_HANDSHAKE_IN_PROGRESS:
+            if(SSL_is_init_finished(pDtlsSession->pSsl)) {
+                DLOGI("ssl is done finished");
+                pDtlsSession->dstate = DTLS_STATE_HANDSHAKE_COMPLETED;
+                // Handle post-handshake steps
+                ATOMIC_STORE_BOOL(&pDtlsSession->sslInitFinished, TRUE);
+                CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CONNECTED));
+            } else {
+                CHK_STATUS(dtlsCheckOutgoingDataBuffer(pDtlsSession));
+            }
+            break;
+        case DTLS_STATE_HANDSHAKE_COMPLETED:
+            if (sslRet == 0 && SSL_get_error(pDtlsSession->pSsl, sslRet) == SSL_ERROR_ZERO_RETURN) {
+                DLOGI("Detected DTLS close_notify alert");
+                isClosed = TRUE;
+            } else if (sslRet <= 0) {
+                LOG_OPENSSL_ERROR("SSL_read");
+            }
 
-    if (!ATOMIC_LOAD_BOOL(&pDtlsSession->sslInitFinished)) {
-        CHK_STATUS(dtlsCheckOutgoingDataBuffer(pDtlsSession));
+            /* if SSL_read failed then set to 0 */
+            dataLen = sslRet < 0 ? 0 : sslRet;
+            break;
+        default:
+            break;
     }
-
-    /* if SSL_read failed then set to 0 */
-    dataLen = sslRet < 0 ? 0 : sslRet;
 
     if (isClosed) {
         ATOMIC_STORE_BOOL(&pDtlsSession->shutdown, TRUE);
@@ -565,11 +591,14 @@ STATUS dtlsCheckOutgoingDataBuffer(PDtlsSession pDtlsSession)
     BIO* pWriteBIO = NULL;
     INT32 dataLenWritten = 0, sslErr = 0;
 
+    // This retrieves the write buffer associated with the DTLS session
     pWriteBIO = SSL_get_wbio(pDtlsSession->pSsl);
     // proceed if write BIO is not empty
+    DLOGI("Checking if BIO Is empty");
     CHK(BIO_ctrl_pending(pWriteBIO) > 0, retStatus);
+    DLOGI("BIO is not empty");
 
-    // BIO_read removes read data
+    // BIO_read removes read data from the write BIO
     dataLenWritten = BIO_read(pWriteBIO, pDtlsSession->outgoingDataBuffer, ARRAY_SIZE(pDtlsSession->outgoingDataBuffer));
     if (dataLenWritten > 0) {
         pDtlsSession->outgoingDataLen = (UINT32) dataLenWritten;

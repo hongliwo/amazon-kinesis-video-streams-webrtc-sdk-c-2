@@ -24,6 +24,12 @@ extern "C" {
 #define GENERATED_CERTIFICATE_NAME     "KVS-WebRTC-Client"
 #define KEYING_EXTRACTOR_LABEL         "EXTRACTOR-dtls_srtp"
 
+typedef enum {
+    DTLS_STATE_INIT,
+    DTLS_STATE_HANDSHAKE_IN_PROGRESS,
+    DTLS_STATE_HANDSHAKE_COMPLETED,
+    // ... add other states as needed
+} DtlsState;
 /*
  * DTLS transmission interval timer (in 100ns)
  */
@@ -106,6 +112,7 @@ struct __DtlsSession {
     UINT64 dtlsSessionStartTime;
     UINT64 dtlsSessionSetupTime;
     RTC_DTLS_TRANSPORT_STATE state;
+    DtlsState dstate;
     MUTEX sslLock;
 
 #ifdef KVS_USE_OPENSSL
