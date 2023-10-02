@@ -412,7 +412,7 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
     struct timeval timeout;
     UINT64 timeoutValDefaultTimeUnit = 0;
     LONG dtlsTimeoutRet = 0;
-
+    BOOL firstMsg = TRUE;
     MEMSET(&timeout, 0x00, SIZEOF(struct timeval));
 
     CHK(pDtlsSession != NULL && pDtlsSession != NULL, STATUS_NULL_ARG);
@@ -433,7 +433,10 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
         SSL_set_connect_state(pDtlsSession->pSsl);
     }
 
-    pDtlsSession->dtlsSessionStartTime = GETTIME();
+    DLOGI("Starting the session");
+    if(!isServer) {
+        pDtlsSession->dtlsSessionStartTime = GETTIME();
+    }
     sslRet = SSL_do_handshake(pDtlsSession->pSsl);
     while (!(ATOMIC_LOAD_BOOL(&pDtlsSession->sslInitFinished))) {
         switch (pDtlsSession->dstate) {
@@ -457,6 +460,9 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
                 } else {
                     DLOGI("Waiting on incoming data");
                     CVAR_WAIT(pDtlsSession->cvar, pDtlsSession->sslLock, INFINITE_TIME_VALUE);
+                    if(isServer && firstMsg) {
+                        pDtlsSession->dtlsSessionStartTime = GETTIME();
+                    }
                     CHK_STATUS(dtlsCheckOutgoingDataBuffer(pDtlsSession));
                 }
                 break;

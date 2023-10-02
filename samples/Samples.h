@@ -170,6 +170,8 @@ VOID sigintHandler(INT32);
 STATUS readFrameFromDisk(PBYTE, PUINT32, PCHAR);
 PVOID sendVideoPackets(PVOID);
 PVOID sendAudioPackets(PVOID);
+PVOID sendVideoPackets(PVOID);
+PVOID sendAudioPackets(PVOID);
 PVOID sendGstreamerAudioVideo(PVOID);
 PVOID sampleReceiveAudioVideoFrame(PVOID);
 PVOID getPeriodicIceCandidatePairStats(PVOID);

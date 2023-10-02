@@ -152,24 +152,6 @@ CleanUp:
     return retStatus;
 }
 
-STATUS handleAnswer(PSampleConfiguration pSampleConfiguration, PSampleStreamingSession pSampleStreamingSession, PSignalingMessage pSignalingMessage)
-{
-    UNUSED_PARAM(pSampleConfiguration);
-    STATUS retStatus = STATUS_SUCCESS;
-    RtcSessionDescriptionInit answerSessionDescriptionInit;
-
-    MEMSET(&answerSessionDescriptionInit, 0x00, SIZEOF(RtcSessionDescriptionInit));
-
-    CHK_STATUS(deserializeSessionDescriptionInit(pSignalingMessage->payload, pSignalingMessage->payloadLen, &answerSessionDescriptionInit));
-    CHK_STATUS(setRemoteDescription(pSampleStreamingSession->pPeerConnection, &answerSessionDescriptionInit));
-
-CleanUp:
-
-    CHK_LOG_ERR(retStatus);
-
-    return retStatus;
-}
-
 PVOID mediaSenderRoutine(PVOID customData)
 {
     STATUS retStatus = STATUS_SUCCESS;
@@ -207,6 +189,29 @@ CleanUp:
     ATOMIC_STORE_BOOL(&pSampleConfiguration->mediaThreadStarted, FALSE);
     CHK_LOG_ERR(retStatus);
     return NULL;
+}
+
+STATUS handleAnswer(PSampleConfiguration pSampleConfiguration, PSampleStreamingSession pSampleStreamingSession, PSignalingMessage pSignalingMessage)
+{
+    UNUSED_PARAM(pSampleConfiguration);
+    STATUS retStatus = STATUS_SUCCESS;
+    RtcSessionDescriptionInit answerSessionDescriptionInit;
+    BOOL mediaThreadStarted = FALSE;
+
+    MEMSET(&answerSessionDescriptionInit, 0x00, SIZEOF(RtcSessionDescriptionInit));
+
+    CHK_STATUS(deserializeSessionDescriptionInit(pSignalingMessage->payload, pSignalingMessage->payloadLen, &answerSessionDescriptionInit));
+    CHK_STATUS(setRemoteDescription(pSampleStreamingSession->pPeerConnection, &answerSessionDescriptionInit));
+    mediaThreadStarted = ATOMIC_EXCHANGE_BOOL(&pSampleConfiguration->mediaThreadStarted, TRUE);
+    if (!mediaThreadStarted) {
+        THREAD_CREATE(&pSampleConfiguration->mediaSenderTid, mediaSenderRoutine, (PVOID) pSampleConfiguration);
+    }
+
+    CleanUp:
+
+    CHK_LOG_ERR(retStatus);
+
+    return retStatus;
 }
 
 STATUS handleOffer(PSampleConfiguration pSampleConfiguration, PSampleStreamingSession pSampleStreamingSession, PSignalingMessage pSignalingMessage)
