@@ -516,6 +516,9 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
         MUTEX_FREE(pDtlsSession->sslLock);
     }
 
+    if (IS_VALID_CVAR_VALUE(pDtlsSession->cvar)) {
+        CVAR_FREE(pDtlsSession->cvar);
+    }
     SAFE_MEMFREE(pDtlsSession);
     *ppDtlsSession = NULL;
 
