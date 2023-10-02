@@ -155,7 +155,7 @@ VOID onInboundPacket(UINT64 customData, PBYTE buff, UINT32 buffLen)
     PKvsPeerConnection pKvsPeerConnection = (PKvsPeerConnection) customData;
     BOOL isDtlsConnected = FALSE;
     INT32 signedBuffLen = buffLen;
-    
+
     CHK(signedBuffLen > 2 && pKvsPeerConnection != NULL, STATUS_SUCCESS);
     /*
      demux each packet off of its first byte
@@ -188,7 +188,6 @@ VOID onInboundPacket(UINT64 customData, PBYTE buff, UINT32 buffLen)
                 CHK_STATUS(allocateSctp(pKvsPeerConnection));
             }
 #endif
-            DLOGI("DTLS connected on inbound");
             changePeerConnectionState(pKvsPeerConnection, RTC_PEER_CONNECTION_STATE_CONNECTED);
         }
 
@@ -436,6 +435,14 @@ CleanUp:
     return retStatus;
 }
 
+PVOID dtlsSessionStartThread(PVOID args)
+{
+    PKvsPeerConnection pKvsPeerConnection = (PKvsPeerConnection) args;
+    DLOGI("Executing in the thread");
+    dtlsSessionHandshakeStart(pKvsPeerConnection->pDtlsSession, pKvsPeerConnection->dtlsIsServer);
+    return NULL;
+}
+
 VOID onIceConnectionStateChange(UINT64 customData, UINT64 connectionState)
 {
     STATUS retStatus = STATUS_SUCCESS;
@@ -492,7 +499,8 @@ VOID onIceConnectionStateChange(UINT64 customData, UINT64 connectionState)
             //
             // Reference: https://w3c.github.io/webrtc-pc/#rtcpeerconnectionstate-enum
             DLOGI("Starting DTLS session");
-            CHK_STATUS(dtlsSessionStart(pKvsPeerConnection->pDtlsSession, pKvsPeerConnection->dtlsIsServer));
+            // Move to the threadpool
+            CHK_STATUS(threadpoolContextPush(dtlsSessionStartThread, (PVOID) pKvsPeerConnection));
         }
     }
 
@@ -875,8 +883,9 @@ STATUS createPeerConnection(PRtcConfiguration pConfiguration, PRtcPeerConnection
     CHK_STATUS(generateJSONSafeString(pKvsPeerConnection->localCNAME, LOCAL_CNAME_LEN));
 
     PROFILE_CALL(CHK_STATUS(createDtlsSession(
-        &dtlsSessionCallbacks, pKvsPeerConnection->timerQueueHandle, pConfiguration->kvsRtcConfiguration.generatedCertificateBits,
-        pConfiguration->kvsRtcConfiguration.generateRSACertificate, pConfiguration->certificates, &pKvsPeerConnection->pDtlsSession)), "Create DTLS Session object");
+                     &dtlsSessionCallbacks, pKvsPeerConnection->timerQueueHandle, pConfiguration->kvsRtcConfiguration.generatedCertificateBits,
+                     pConfiguration->kvsRtcConfiguration.generateRSACertificate, pConfiguration->certificates, &pKvsPeerConnection->pDtlsSession)),
+                 "Create DTLS Session object");
     CHK_STATUS(dtlsSessionOnOutBoundData(pKvsPeerConnection->pDtlsSession, (UINT64) pKvsPeerConnection, onDtlsOutboundPacket));
     CHK_STATUS(dtlsSessionOnStateChange(pKvsPeerConnection->pDtlsSession, (UINT64) pKvsPeerConnection, onDtlsStateChange));
 
@@ -903,7 +912,8 @@ STATUS createPeerConnection(PRtcConfiguration pConfiguration, PRtcPeerConnection
     PROFILE_CALL(CHK_STATUS(createConnectionListener(&pConnectionListener)), "Create connection listener");
     // IceAgent will own the lifecycle of pConnectionListener;
     PROFILE_CALL(CHK_STATUS(createIceAgent(pKvsPeerConnection->localIceUfrag, pKvsPeerConnection->localIcePwd, &iceAgentCallbacks, pConfiguration,
-                              pKvsPeerConnection->timerQueueHandle, pConnectionListener, &pKvsPeerConnection->pIceAgent)), "Create ICE agent object");
+                                           pKvsPeerConnection->timerQueueHandle, pConnectionListener, &pKvsPeerConnection->pIceAgent)),
+                 "Create ICE agent object");
 
     NULLABLE_SET_EMPTY(pKvsPeerConnection->canTrickleIce);
 

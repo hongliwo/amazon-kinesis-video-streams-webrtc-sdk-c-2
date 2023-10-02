@@ -25,10 +25,10 @@ extern "C" {
 #define KEYING_EXTRACTOR_LABEL         "EXTRACTOR-dtls_srtp"
 
 typedef enum {
-    DTLS_STATE_INIT,
+    DTLS_STATE_NEW,
     DTLS_STATE_HANDSHAKE_IN_PROGRESS,
     DTLS_STATE_HANDSHAKE_COMPLETED,
-    // ... add other states as needed
+    DTLS_STATE_HANDSHAKE_ERROR,
 } DtlsState;
 /*
  * DTLS transmission interval timer (in 100ns)
@@ -114,6 +114,7 @@ struct __DtlsSession {
     RTC_DTLS_TRANSPORT_STATE state;
     DtlsState dstate;
     MUTEX sslLock;
+    CVAR cvar;
 
 #ifdef KVS_USE_OPENSSL
     volatile ATOMIC_BOOL sslInitFinished;
@@ -165,6 +166,7 @@ STATUS freeDtlsSession(PDtlsSession*);
  * @return STATUS - status of operation
  */
 STATUS dtlsSessionStart(PDtlsSession, BOOL);
+STATUS dtlsSessionHandshakeStart(PDtlsSession, BOOL);
 STATUS dtlsSessionProcessPacket(PDtlsSession, PBYTE, PINT32);
 STATUS dtlsSessionIsInitFinished(PDtlsSession, PBOOL);
 STATUS dtlsSessionPopulateKeyingMaterial(PDtlsSession, PDtlsKeyingMaterial);
