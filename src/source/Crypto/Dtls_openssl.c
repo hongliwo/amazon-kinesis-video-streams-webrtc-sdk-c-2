@@ -544,7 +544,6 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
         DLOGI("Ref count here: %d", pDtlsSession->refCount);
         THREAD_SLEEP(100 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
     }
-
     if (pDtlsSession->timerId != MAX_UINT32) {
         timerQueueCancelTimer(pDtlsSession->timerQueueHandle, pDtlsSession->timerId, (UINT64) pDtlsSession);
     }
@@ -561,6 +560,9 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
     }
 
     if (IS_VALID_MUTEX_VALUE(pDtlsSession->sslLock)) {
+        // Adding this to ensure free gets the mutex before freeing the object
+        MUTEX_LOCK(pDtlsSession->sslLock);
+        MUTEX_UNLOCK(pDtlsSession->sslLock);
         MUTEX_FREE(pDtlsSession->sslLock);
     }
     SAFE_MEMFREE(pDtlsSession);
