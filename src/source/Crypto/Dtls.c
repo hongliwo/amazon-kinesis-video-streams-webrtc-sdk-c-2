@@ -6,13 +6,16 @@ STATUS dtlsSessionOnOutBoundData(PDtlsSession pDtlsSession, UINT64 customData, D
     STATUS retStatus = STATUS_SUCCESS;
 
     CHK(pDtlsSession != NULL && callbackFn != NULL, STATUS_NULL_ARG);
-
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     pDtlsSession->dtlsSessionCallbacks.outboundPacketFn = callbackFn;
     pDtlsSession->dtlsSessionCallbacks.outBoundPacketFnCustomData = customData;
     MUTEX_UNLOCK(pDtlsSession->sslLock);
 
 CleanUp:
+    if (pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(&pDtlsSession->refCount);
+    }
     return retStatus;
 }
 
@@ -22,13 +25,16 @@ STATUS dtlsSessionOnStateChange(PDtlsSession pDtlsSession, UINT64 customData, Dt
     STATUS retStatus = STATUS_SUCCESS;
 
     CHK(pDtlsSession != NULL && callbackFn != NULL, STATUS_NULL_ARG);
-
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     pDtlsSession->dtlsSessionCallbacks.stateChangeFn = callbackFn;
     pDtlsSession->dtlsSessionCallbacks.stateChangeFnCustomData = customData;
     MUTEX_UNLOCK(pDtlsSession->sslLock);
 
 CleanUp:
+    if (pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(&pDtlsSession->refCount);
+    }
     LEAVES();
     return retStatus;
 }

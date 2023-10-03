@@ -401,7 +401,7 @@ CleanUp:
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);
     }
-    if(pDtlsSession != NULL) {
+    if (pDtlsSession != NULL) {
         ATOMIC_DECREMENT(&pDtlsSession->refCount);
     }
 
@@ -506,6 +506,8 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
         }
     }
 
+    DLOGI("Done with handshake, exiting from this thread");
+
 CleanUp:
 
     CHK_LOG_ERR(retStatus);
@@ -516,7 +518,6 @@ CleanUp:
     if (pDtlsSession != NULL) {
         ATOMIC_DECREMENT(&pDtlsSession->refCount);
     }
-
 
     LEAVES();
     return retStatus;
@@ -534,6 +535,7 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
 
     CHK(pDtlsSession != NULL, retStatus);
 
+    DLOGI("Freeing the DTLS session, lets wait");
     // Set the shutdown flag
     ATOMIC_STORE_BOOL(&pDtlsSession->shutdown, TRUE);
 
@@ -602,6 +604,10 @@ STATUS dtlsSessionProcessPacket(PDtlsSession pDtlsSession, PBYTE pData, PINT32 p
             LOG_OPENSSL_ERROR("SSL_read");
         }
 
+        if (!ATOMIC_LOAD_BOOL(&pDtlsSession->sslInitFinished)) {
+            CHK_STATUS(dtlsCheckOutgoingDataBuffer(pDtlsSession));
+        }
+
         /* if SSL_read failed then set to 0 */
         dataLen = sslRet < 0 ? 0 : sslRet;
 
@@ -664,7 +670,7 @@ CleanUp:
         MUTEX_UNLOCK(pDtlsSession->sslLock);
     }
 
-    if(pDtlsSession != NULL) {
+    if (pDtlsSession != NULL) {
         ATOMIC_DECREMENT(&pDtlsSession->refCount);
     }
 
@@ -756,7 +762,7 @@ CleanUp:
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);
     }
-    if(pDtlsSession != NULL) {
+    if (pDtlsSession != NULL) {
         ATOMIC_DECREMENT(&pDtlsSession->refCount);
     }
 
@@ -809,7 +815,7 @@ CleanUp:
         MUTEX_UNLOCK(pDtlsSession->sslLock);
     }
 
-    if(pDtlsSession != NULL) {
+    if (pDtlsSession != NULL) {
         ATOMIC_DECREMENT(&pDtlsSession->refCount);
     }
 
@@ -839,7 +845,7 @@ CleanUp:
         MUTEX_UNLOCK(pDtlsSession->sslLock);
     }
 
-    if(pDtlsSession != NULL) {
+    if (pDtlsSession != NULL) {
         ATOMIC_DECREMENT(&pDtlsSession->refCount);
     }
 
@@ -879,7 +885,7 @@ CleanUp:
         MUTEX_UNLOCK(pDtlsSession->sslLock);
     }
 
-    if(pDtlsSession != NULL) {
+    if (pDtlsSession != NULL) {
         ATOMIC_DECREMENT(&pDtlsSession->refCount);
     }
 
