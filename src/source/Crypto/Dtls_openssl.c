@@ -370,6 +370,7 @@ STATUS dtlsSessionStart(PDtlsSession pDtlsSession, BOOL isServer)
 
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
 
     CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CONNECTING));
 
@@ -394,7 +395,7 @@ STATUS dtlsSessionStart(PDtlsSession pDtlsSession, BOOL isServer)
 CleanUp:
 
     CHK_LOG_ERR(retStatus);
-
+    ATOMIC_DECREMENT(&pDtlsSession->refCount);
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);
     }
@@ -439,7 +440,7 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
         pDtlsSession->dtlsSessionStartTime = GETTIME();
     }
     sslRet = SSL_do_handshake(pDtlsSession->pSsl);
-    while (!(ATOMIC_LOAD_BOOL(&pDtlsSession->sslInitFinished)) && !dtlsHandshakeErrored) {
+    while (!(ATOMIC_LOAD_BOOL(&pDtlsSession->sslInitFinished)) && !dtlsHandshakeErrored && !(ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown))) {
         dtlsTimeoutRet = DTLSv1_get_timeout(pDtlsSession->pSsl, &timeout);
         if (dtlsTimeoutRet > 0) {
             DLOGI("Calculating wait time..");
@@ -523,6 +524,14 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
 
     CHK(pDtlsSession != NULL, retStatus);
 
+    // Set the shutdown flag
+    ATOMIC_STORE_BOOL(&pDtlsSession->shutdown, TRUE);
+
+    // Wait until refCount drops to 0 or add a timeout mechanism to avoid indefinite waits
+    while (ATOMIC_LOAD(&pDtlsSession->refCount) > 0) {
+        THREAD_SLEEP(100 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
+    }
+
     if (pDtlsSession->timerId != MAX_UINT32) {
         timerQueueCancelTimer(pDtlsSession->timerQueueHandle, pDtlsSession->timerId, (UINT64) pDtlsSession);
     }
@@ -534,14 +543,12 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
         SSL_CTX_free(pDtlsSession->pSslCtx);
     }
 
-    // Broadcast for safety....
+    if (IS_VALID_CVAR_VALUE(pDtlsSession->cvar)) {
+        CVAR_FREE(pDtlsSession->cvar);
+    }
 
     if (IS_VALID_MUTEX_VALUE(pDtlsSession->sslLock)) {
         MUTEX_FREE(pDtlsSession->sslLock);
-    }
-
-    if (IS_VALID_CVAR_VALUE(pDtlsSession->cvar)) {
-        CVAR_FREE(pDtlsSession->cvar);
     }
     SAFE_MEMFREE(pDtlsSession);
     *ppDtlsSession = NULL;
@@ -561,41 +568,39 @@ STATUS dtlsSessionProcessPacket(PDtlsSession pDtlsSession, PBYTE pData, PINT32 p
     INT32 dataLen = 0;
 
     CHK(pDtlsSession != NULL && pDtlsSession != NULL && pDataLen != NULL, STATUS_NULL_ARG);
-    CHK(ATOMIC_LOAD_BOOL(&pDtlsSession->isStarted), STATUS_SSL_PACKET_BEFORE_DTLS_READY);
-
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
+    CHK(ATOMIC_LOAD_BOOL(&pDtlsSession->isStarted), STATUS_SSL_PACKET_BEFORE_DTLS_READY);
+    if (!ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown)) {
+        sslRet = BIO_write(SSL_get_rbio(pDtlsSession->pSsl), pData, *pDataLen);
+        if (sslRet <= 0) {
+            LOG_OPENSSL_ERROR("BIO_write");
+        }
 
-    sslRet = BIO_write(SSL_get_rbio(pDtlsSession->pSsl), pData, *pDataLen);
-    if (sslRet <= 0) {
-        LOG_OPENSSL_ERROR("BIO_write");
+        // should clear error before SSL_read: https://stackoverflow.com/a/47218133
+        ERR_clear_error();
+        sslRet = SSL_read(pDtlsSession->pSsl, pData, *pDataLen);
+
+        if (sslRet == 0 && SSL_get_error(pDtlsSession->pSsl, sslRet) == SSL_ERROR_ZERO_RETURN) {
+            DLOGI("Detected DTLS close_notify alert");
+            isClosed = TRUE;
+        } else if (sslRet <= 0) {
+            LOG_OPENSSL_ERROR("SSL_read");
+        }
+
+        /* if SSL_read failed then set to 0 */
+        dataLen = sslRet < 0 ? 0 : sslRet;
+
+        if (isClosed) {
+            ATOMIC_STORE_BOOL(&pDtlsSession->shutdown, TRUE);
+            CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CLOSED));
+        }
+        CVAR_BROADCAST(pDtlsSession->cvar);
     }
 
-    // should clear error before SSL_read: https://stackoverflow.com/a/47218133
-    ERR_clear_error();
-    sslRet = SSL_read(pDtlsSession->pSsl, pData, *pDataLen);
-
-    if (sslRet == 0 && SSL_get_error(pDtlsSession->pSsl, sslRet) == SSL_ERROR_ZERO_RETURN) {
-        DLOGI("Detected DTLS close_notify alert");
-        isClosed = TRUE;
-    } else if (sslRet <= 0) {
-        LOG_OPENSSL_ERROR("SSL_read");
-    }
-
-    if (!ATOMIC_LOAD_BOOL(&pDtlsSession->sslInitFinished)) {
-        CHK_STATUS(dtlsCheckOutgoingDataBuffer(pDtlsSession));
-    }
-
-    /* if SSL_read failed then set to 0 */
-    dataLen = sslRet < 0 ? 0 : sslRet;
-
-    if (isClosed) {
-        ATOMIC_STORE_BOOL(&pDtlsSession->shutdown, TRUE);
-        CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CLOSED));
-    }
-    CVAR_BROADCAST(pDtlsSession->cvar);
 CleanUp:
-
+    ATOMIC_DECREMENT(&pDtlsSession->refCount);
     CHK_LOG_ERR(retStatus);
 
     if (pDataLen != NULL) {

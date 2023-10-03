@@ -207,7 +207,7 @@ STATUS handleAnswer(PSampleConfiguration pSampleConfiguration, PSampleStreamingS
         THREAD_CREATE(&pSampleConfiguration->mediaSenderTid, mediaSenderRoutine, (PVOID) pSampleConfiguration);
     }
 
-    CleanUp:
+CleanUp:
 
     CHK_LOG_ERR(retStatus);
 
@@ -379,7 +379,7 @@ STATUS initializePeerConnection(PSampleConfiguration pSampleConfiguration, PRtcP
     configuration.kvsRtcConfiguration.iceSetInterfaceFilterFunc = NULL;
 
     // Set the ICE mode explicitly
-    configuration.iceTransportPolicy = ICE_TRANSPORT_POLICY_RELAY;
+    configuration.iceTransportPolicy = ICE_TRANSPORT_POLICY_ALL;
 
     // Set the  STUN server
     PCHAR pKinesisVideoStunUrlPostFix = KINESIS_VIDEO_STUN_URL_POSTFIX;
