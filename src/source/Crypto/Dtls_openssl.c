@@ -45,10 +45,9 @@ STATUS dtlsTransmissionTimerCallback(UINT32 timerID, UINT64 currentTime, UINT64 
 
     MEMSET(&timeout, 0x00, SIZEOF(struct timeval));
 
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
-
-    ATOMIC_INCREMENT(&pDtlsSession->refCount);
 
     if (SSL_is_init_finished(pDtlsSession->pSsl)) {
         CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CONNECTED));
@@ -79,12 +78,11 @@ STATUS dtlsTransmissionTimerCallback(UINT32 timerID, UINT64 currentTime, UINT64 
     }
 
 CleanUp:
-
-    if (pDtlsSession != NULL) {
-        ATOMIC_DECREMENT(&pDtlsSession->refCount);
-    }
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);
+    }
+    if (pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(&pDtlsSession->refCount);
     }
     return retStatus;
 }
@@ -373,9 +371,9 @@ STATUS dtlsSessionStart(PDtlsSession pDtlsSession, BOOL isServer)
     CHK(pDtlsSession != NULL && pDtlsSession != NULL, STATUS_NULL_ARG);
     CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->isStarted), retStatus);
 
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
-    ATOMIC_INCREMENT(&pDtlsSession->refCount);
 
     CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CONNECTING));
 
@@ -400,9 +398,11 @@ STATUS dtlsSessionStart(PDtlsSession pDtlsSession, BOOL isServer)
 CleanUp:
 
     CHK_LOG_ERR(retStatus);
-    ATOMIC_DECREMENT(&pDtlsSession->refCount);
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);
+    }
+    if(pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(&pDtlsSession->refCount);
     }
 
     LEAVES();
@@ -425,9 +425,9 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
     CHK(pDtlsSession != NULL && pDtlsSession != NULL, STATUS_NULL_ARG);
     CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->isStarted), retStatus);
 
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
-    ATOMIC_INCREMENT(&pDtlsSession->refCount);
 
     CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CONNECTING));
 
@@ -509,13 +509,14 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
 CleanUp:
 
     CHK_LOG_ERR(retStatus);
-    if (pDtlsSession != NULL) {
-        ATOMIC_DECREMENT(&pDtlsSession->refCount);
-    }
 
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);
     }
+    if (pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(&pDtlsSession->refCount);
+    }
+
 
     LEAVES();
     return retStatus;
@@ -578,9 +579,11 @@ STATUS dtlsSessionProcessPacket(PDtlsSession pDtlsSession, PBYTE pData, PINT32 p
     INT32 dataLen = 0;
 
     CHK(pDtlsSession != NULL && pDtlsSession != NULL && pDataLen != NULL, STATUS_NULL_ARG);
+
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
-    ATOMIC_INCREMENT(&pDtlsSession->refCount);
+
     CHK(ATOMIC_LOAD_BOOL(&pDtlsSession->isStarted), STATUS_SSL_PACKET_BEFORE_DTLS_READY);
     if (!ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown)) {
         sslRet = BIO_write(SSL_get_rbio(pDtlsSession->pSsl), pData, *pDataLen);
@@ -611,16 +614,15 @@ STATUS dtlsSessionProcessPacket(PDtlsSession pDtlsSession, PBYTE pData, PINT32 p
 CleanUp:
     CHK_LOG_ERR(retStatus);
 
-    if (pDtlsSession != NULL) {
-        ATOMIC_DECREMENT(&pDtlsSession->refCount);
-    }
-
     if (pDataLen != NULL) {
         *pDataLen = dataLen;
     }
 
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);
+    }
+    if (pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(&pDtlsSession->refCount);
     }
 
     LEAVES();
@@ -638,8 +640,11 @@ STATUS dtlsSessionPutApplicationData(PDtlsSession pDtlsSession, PBYTE pData, INT
     BOOL locked = FALSE;
 
     CHK(pDtlsSession != NULL && pData != NULL, STATUS_NULL_ARG);
+
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
+
     CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown), retStatus);
 
     if ((amountWritten = SSL_write(pDtlsSession->pSsl, pData, dataLen)) != dataLen &&
@@ -659,6 +664,10 @@ CleanUp:
         MUTEX_UNLOCK(pDtlsSession->sslLock);
     }
 
+    if(pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(&pDtlsSession->refCount);
+    }
+
     LEAVES();
     return retStatus;
 }
@@ -670,9 +679,9 @@ STATUS dtlsSessionShutdown(PDtlsSession pDtlsSession)
 
     CHK(pDtlsSession != NULL, STATUS_NULL_ARG);
 
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
-    ATOMIC_INCREMENT(&pDtlsSession->refCount);
 
     CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown), retStatus);
     CHK(ATOMIC_LOAD_BOOL(&pDtlsSession->sslInitFinished), retStatus);
@@ -683,12 +692,13 @@ STATUS dtlsSessionShutdown(PDtlsSession pDtlsSession)
     CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CLOSED));
 
 CleanUp:
-    if (pDtlsSession != NULL) {
-        ATOMIC_DECREMENT(&pDtlsSession->refCount);
-    }
 
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);
+    }
+
+    if (pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(&pDtlsSession->refCount);
     }
 
     return retStatus;
@@ -729,8 +739,10 @@ STATUS dtlsSessionIsInitFinished(PDtlsSession pDtlsSession, PBOOL pIsConnected)
 
     CHK(pDtlsSession != NULL && pIsConnected != NULL, STATUS_NULL_ARG);
 
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
+
     *pIsConnected = SSL_is_init_finished(pDtlsSession->pSsl);
 
     // The state change happens in the timer callback anyways. But the callback is invoked every
@@ -743,6 +755,9 @@ STATUS dtlsSessionIsInitFinished(PDtlsSession pDtlsSession, PBOOL pIsConnected)
 CleanUp:
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);
+    }
+    if(pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(&pDtlsSession->refCount);
     }
 
     LEAVES();
@@ -759,6 +774,7 @@ STATUS dtlsSessionPopulateKeyingMaterial(PDtlsSession pDtlsSession, PDtlsKeyingM
 
     CHK(pDtlsSession != NULL && pDtlsKeyingMaterial != NULL, STATUS_NULL_ARG);
 
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
 
@@ -793,6 +809,10 @@ CleanUp:
         MUTEX_UNLOCK(pDtlsSession->sslLock);
     }
 
+    if(pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(&pDtlsSession->refCount);
+    }
+
     LEAVES();
     return retStatus;
 }
@@ -807,6 +827,7 @@ STATUS dtlsSessionGetLocalCertificateFingerprint(PDtlsSession pDtlsSession, PCHA
     CHK(pDtlsSession != NULL && pBuff != NULL, STATUS_NULL_ARG);
     CHK(buffLen >= CERTIFICATE_FINGERPRINT_LENGTH, STATUS_INVALID_ARG_LEN);
 
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
 
@@ -816,6 +837,10 @@ STATUS dtlsSessionGetLocalCertificateFingerprint(PDtlsSession pDtlsSession, PCHA
 CleanUp:
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);
+    }
+
+    if(pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(&pDtlsSession->refCount);
     }
 
     LEAVES();
@@ -832,6 +857,7 @@ STATUS dtlsSessionVerifyRemoteCertificateFingerprint(PDtlsSession pDtlsSession, 
 
     CHK(pDtlsSession != NULL && pExpectedFingerprint != NULL, STATUS_NULL_ARG);
 
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
 
@@ -851,6 +877,10 @@ CleanUp:
 
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);
+    }
+
+    if(pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(&pDtlsSession->refCount);
     }
 
     LEAVES();
