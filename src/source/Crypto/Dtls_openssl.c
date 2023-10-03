@@ -48,6 +48,8 @@ STATUS dtlsTransmissionTimerCallback(UINT32 timerID, UINT64 currentTime, UINT64 
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
 
+    ATOMIC_INCREMENT(pDtlsSession->refCount);
+
     if (SSL_is_init_finished(pDtlsSession->pSsl)) {
         CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CONNECTED));
         ATOMIC_STORE_BOOL(&pDtlsSession->sslInitFinished, TRUE);
@@ -78,6 +80,9 @@ STATUS dtlsTransmissionTimerCallback(UINT32 timerID, UINT64 currentTime, UINT64 
 
 CleanUp:
 
+    if (pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(pDtlsSession->refCount);
+    }
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);
     }
@@ -422,6 +427,7 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
 
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
 
     CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CONNECTING));
 
@@ -503,6 +509,9 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
 CleanUp:
 
     CHK_LOG_ERR(retStatus);
+    if (pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(&pDtlsSession->refCount);
+    }
 
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);
@@ -529,6 +538,7 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
 
     // Wait until refCount drops to 0 or add a timeout mechanism to avoid indefinite waits
     while (ATOMIC_LOAD(&pDtlsSession->refCount) > 0) {
+        DLOGI("Ref count here: %d", pDtlsSession->refCount);
         THREAD_SLEEP(100 * HUNDREDS_OF_NANOS_IN_A_MILLISECOND);
     }
 
@@ -662,6 +672,7 @@ STATUS dtlsSessionShutdown(PDtlsSession pDtlsSession)
 
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
+    ATOMIC_INCREMENT(pDtlsSession->refCount);
 
     CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown), retStatus);
     CHK(ATOMIC_LOAD_BOOL(&pDtlsSession->sslInitFinished), retStatus);
@@ -672,6 +683,9 @@ STATUS dtlsSessionShutdown(PDtlsSession pDtlsSession)
     CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CLOSED));
 
 CleanUp:
+    if (pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(pDtlsSession->refCount);
+    }
 
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);

@@ -248,6 +248,11 @@ INT32 dtlsSessionKeyDerivationCallback(PVOID customData, const unsigned char* pM
     return 0;
 }
 
+STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
+{
+    return STATUS_SUCCESS;
+}
+
 STATUS dtlsSessionStart(PDtlsSession pDtlsSession, BOOL isServer)
 {
     ENTERS();
