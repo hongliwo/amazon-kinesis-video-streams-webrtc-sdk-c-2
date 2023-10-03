@@ -500,8 +500,12 @@ VOID onIceConnectionStateChange(UINT64 customData, UINT64 connectionState)
             // Reference: https://w3c.github.io/webrtc-pc/#rtcpeerconnectionstate-enum
             DLOGI("Starting DTLS session");
             // Move to the threadpool
-#if defined(ENABLE_KVS_THREADPOOL) && defined(KVS_USE_OPENSSL)
+#ifdef ENABLE_KVS_THREADPOOL
+#ifdef KVS_USE_OPENSSL
             CHK_STATUS(threadpoolContextPush(dtlsSessionStartThread, (PVOID) pKvsPeerConnection));
+#else
+            CHK_STATUS(dtlsSessionStart(pKvsPeerConnection->pDtlsSession, pKvsPeerConnection->dtlsIsServer));
+#endif
 #else
             CHK_STATUS(dtlsSessionStart(pKvsPeerConnection->pDtlsSession, pKvsPeerConnection->dtlsIsServer));
 #endif

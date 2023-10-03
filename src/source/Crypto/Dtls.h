@@ -167,9 +167,6 @@ STATUS freeDtlsSession(PDtlsSession*);
  * @return STATUS - status of operation
  */
 STATUS dtlsSessionStart(PDtlsSession, BOOL);
-#ifdef KVS_USE_OPENSSL
-STATUS dtlsSessionHandshakeStart(PDtlsSession, BOOL);
-#endif
 STATUS dtlsSessionProcessPacket(PDtlsSession, PBYTE, PINT32);
 STATUS dtlsSessionIsInitFinished(PDtlsSession, PBOOL);
 STATUS dtlsSessionPopulateKeyingMaterial(PDtlsSession, PDtlsKeyingMaterial);
@@ -195,6 +192,7 @@ STATUS createCertificateAndKey(INT32, BOOL, X509** ppCert, EVP_PKEY** ppPkey);
 STATUS freeCertificateAndKey(X509** ppCert, EVP_PKEY** ppPkey);
 STATUS dtlsValidateRtcCertificates(PRtcCertificate, PUINT32);
 STATUS createSslCtx(PDtlsSessionCertificateInfo, UINT32, SSL_CTX**);
+STATUS dtlsSessionHandshakeStart(PDtlsSession, BOOL);
 #elif KVS_USE_MBEDTLS
 STATUS dtlsCertificateFingerprint(mbedtls_x509_crt*, PCHAR);
 STATUS copyCertificateAndKey(mbedtls_x509_crt*, mbedtls_pk_context*, PDtlsSessionCertificateInfo);
