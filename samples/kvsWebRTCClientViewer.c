@@ -39,7 +39,7 @@ STATUS readFrameFromDisk(PBYTE pFrame, PUINT32 pSize, PCHAR frameFilePath)
     size = *pSize;
     // Get the size and read into frame
     CHK_STATUS(readFile(frameFilePath, TRUE, pFrame, &size));
-    CleanUp:
+CleanUp:
 
     if (pSize != NULL) {
         *pSize = (UINT32) size;
@@ -174,7 +174,7 @@ PVOID sendAudioPackets(PVOID args)
         THREAD_SLEEP(SAMPLE_AUDIO_FRAME_DURATION);
     }
 
-    CleanUp:
+CleanUp:
     DLOGI("[KVS Master] closing audio thread");
     return (PVOID) (ULONG_PTR) retStatus;
 }

@@ -435,7 +435,7 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
     }
 
     DLOGI("Starting the session");
-    if(!isServer) {
+    if (!isServer) {
         pDtlsSession->dtlsSessionStartTime = GETTIME();
     }
     sslRet = SSL_do_handshake(pDtlsSession->pSsl);
@@ -465,7 +465,7 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
                 if (SSL_is_init_finished(pDtlsSession->pSsl)) {
                     pDtlsSession->handshakeState = DTLS_STATE_HANDSHAKE_COMPLETED;
                 } else {
-                    if(dtlsTimeoutRet < 0) {
+                    if (dtlsTimeoutRet < 0) {
                         pDtlsSession->handshakeState = DTLS_STATE_HANDSHAKE_ERROR;
                     } else {
                         BOOL timedOut = (CVAR_WAIT(pDtlsSession->cvar, pDtlsSession->sslLock, waitTime) == STATUS_OPERATION_TIMED_OUT);
@@ -478,7 +478,7 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
                         }
 
                         if (timedOut) {
-                            DLOGD("DTLS handshake timeout event occured, going to retransmit");
+                            DLOGD("DTLS handshake timeout event occurred, going to retransmit");
                             DTLSv1_handle_timeout(pDtlsSession->pSsl);
                         }
 
@@ -533,6 +533,9 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
     if (pDtlsSession->pSslCtx != NULL) {
         SSL_CTX_free(pDtlsSession->pSslCtx);
     }
+
+    // Broadcast for safety....
+
     if (IS_VALID_MUTEX_VALUE(pDtlsSession->sslLock)) {
         MUTEX_FREE(pDtlsSession->sslLock);
     }
@@ -589,10 +592,8 @@ STATUS dtlsSessionProcessPacket(PDtlsSession pDtlsSession, PBYTE pData, PINT32 p
     if (isClosed) {
         ATOMIC_STORE_BOOL(&pDtlsSession->shutdown, TRUE);
         CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CLOSED));
-    } else {
-        CVAR_BROADCAST(pDtlsSession->cvar);
     }
-
+    CVAR_BROADCAST(pDtlsSession->cvar);
 CleanUp:
 
     CHK_LOG_ERR(retStatus);

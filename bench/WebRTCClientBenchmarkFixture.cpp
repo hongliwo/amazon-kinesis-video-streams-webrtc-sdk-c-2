@@ -9,7 +9,7 @@ namespace webrtcclient {
 VOID WebRtcClientBenchmarkBase::SetUp(const ::benchmark::State& state)
 {
     UNUSED_PARAM(state);
-    SET_LOGGER_LOG_LEVEL(LOG_LEVEL_WARN);
+    SET_LOGGER_LOG_LEVEL(LOG_LEVEL_INFO);
     initKvsWebRtc();
 }
 
