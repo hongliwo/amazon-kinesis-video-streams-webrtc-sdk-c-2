@@ -167,7 +167,9 @@ STATUS freeDtlsSession(PDtlsSession*);
  * @return STATUS - status of operation
  */
 STATUS dtlsSessionStart(PDtlsSession, BOOL);
+#ifdef KVS_USE_OPENSSL
 STATUS dtlsSessionHandshakeStart(PDtlsSession, BOOL);
+#endif
 STATUS dtlsSessionProcessPacket(PDtlsSession, PBYTE, PINT32);
 STATUS dtlsSessionIsInitFinished(PDtlsSession, PBOOL);
 STATUS dtlsSessionPopulateKeyingMaterial(PDtlsSession, PDtlsKeyingMaterial);
