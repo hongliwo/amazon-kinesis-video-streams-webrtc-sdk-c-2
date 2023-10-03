@@ -598,10 +598,12 @@ STATUS dtlsSessionProcessPacket(PDtlsSession pDtlsSession, PBYTE pData, PINT32 p
         }
         CVAR_BROADCAST(pDtlsSession->cvar);
     }
-
 CleanUp:
-    ATOMIC_DECREMENT(&pDtlsSession->refCount);
     CHK_LOG_ERR(retStatus);
+
+    if (pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(&pDtlsSession->refCount);
+    }
 
     if (pDataLen != NULL) {
         *pDataLen = dataLen;
