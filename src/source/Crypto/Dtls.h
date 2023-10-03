@@ -29,7 +29,7 @@ typedef enum {
     DTLS_STATE_HANDSHAKE_IN_PROGRESS,
     DTLS_STATE_HANDSHAKE_COMPLETED,
     DTLS_STATE_HANDSHAKE_ERROR,
-} DtlsState;
+} DTLS_HANDSHAKE_STATE;
 /*
  * DTLS transmission interval timer (in 100ns)
  */
@@ -112,7 +112,7 @@ struct __DtlsSession {
     UINT64 dtlsSessionStartTime;
     UINT64 dtlsSessionSetupTime;
     RTC_DTLS_TRANSPORT_STATE state;
-    DtlsState dstate;
+    DTLS_HANDSHAKE_STATE handshakeState;
     MUTEX sslLock;
     CVAR cvar;
 
