@@ -42,10 +42,10 @@ STATUS dtlsTransmissionTimerCallback(UINT32 timerID, UINT64 currentTime, UINT64 
     LONG dtlsTimeoutRet = 0;
 
     CHK(pDtlsSession != NULL, STATUS_NULL_ARG);
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
 
     MEMSET(&timeout, 0x00, SIZEOF(struct timeval));
 
-    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
 
@@ -370,9 +370,9 @@ STATUS dtlsSessionStart(PDtlsSession pDtlsSession, BOOL isServer)
     INT32 sslRet, sslErr;
 
     CHK(pDtlsSession != NULL && pDtlsSession != NULL, STATUS_NULL_ARG);
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->isStarted), retStatus);
 
-    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
 
@@ -424,9 +424,9 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
     MEMSET(&timeout, 0x00, SIZEOF(struct timeval));
 
     CHK(pDtlsSession != NULL && pDtlsSession != NULL, STATUS_NULL_ARG);
+    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->isStarted), retStatus);
 
-    ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
 
