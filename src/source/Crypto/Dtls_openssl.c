@@ -78,6 +78,7 @@ STATUS dtlsTransmissionTimerCallback(UINT32 timerID, UINT64 currentTime, UINT64 
     }
 
 CleanUp:
+
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);
     }
@@ -471,6 +472,8 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
             case DTLS_STATE_HANDSHAKE_IN_PROGRESS:
                 if (SSL_is_init_finished(pDtlsSession->pSsl)) {
                     pDtlsSession->handshakeState = DTLS_STATE_HANDSHAKE_COMPLETED;
+                    ATOMIC_STORE_BOOL(&pDtlsSession->sslInitFinished, TRUE);
+                    CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CONNECTED));
                 } else {
                     if (dtlsTimeoutRet < 0) {
                         pDtlsSession->handshakeState = DTLS_STATE_HANDSHAKE_ERROR;
@@ -555,16 +558,17 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
         SSL_CTX_free(pDtlsSession->pSslCtx);
     }
 
-    if (IS_VALID_CVAR_VALUE(pDtlsSession->cvar)) {
-        CVAR_FREE(pDtlsSession->cvar);
-    }
-
     if (IS_VALID_MUTEX_VALUE(pDtlsSession->sslLock)) {
         // Adding this to ensure free gets the mutex before freeing the object
         MUTEX_LOCK(pDtlsSession->sslLock);
+        CVAR_BROADCAST(pDtlsSession->cvar);
+        if (IS_VALID_CVAR_VALUE(pDtlsSession->cvar)) {
+            CVAR_FREE(pDtlsSession->cvar);
+        }
         MUTEX_UNLOCK(pDtlsSession->sslLock);
         MUTEX_FREE(pDtlsSession->sslLock);
     }
+
     SAFE_MEMFREE(pDtlsSession);
     *ppDtlsSession = NULL;
 

@@ -180,7 +180,9 @@ VOID onInboundPacket(UINT64 customData, PBYTE buff, UINT32 buffLen)
         CHK_STATUS(dtlsSessionIsInitFinished(pKvsPeerConnection->pDtlsSession, &isDtlsConnected));
         if (isDtlsConnected) {
             if (pKvsPeerConnection->pSrtpSession == NULL) {
+                DLOGI("Allocating SRTP...DTLS init is done");
                 CHK_STATUS(allocateSrtp(pKvsPeerConnection));
+                DLOGI("Allocation done");
             }
 
 #ifdef ENABLE_DATA_CHANNEL
@@ -188,6 +190,8 @@ VOID onInboundPacket(UINT64 customData, PBYTE buff, UINT32 buffLen)
                 CHK_STATUS(allocateSctp(pKvsPeerConnection));
             }
 #endif
+            // Only change to connected after srtp is set up as well so that we do not lose the frames while SRTP is
+            // being set up
             changePeerConnectionState(pKvsPeerConnection, RTC_PEER_CONNECTION_STATE_CONNECTED);
         }
 
@@ -650,7 +654,6 @@ VOID onDtlsStateChange(UINT64 customData, RTC_DTLS_TRANSPORT_STATE newDtlsState)
 
     switch (newDtlsState) {
         case RTC_DTLS_TRANSPORT_STATE_CONNECTED:
-            changePeerConnectionState(pKvsPeerConnection, RTC_PEER_CONNECTION_STATE_CONNECTED);
             pKvsPeerConnection->peerConnectionDiagnostics.dtlsSessionSetupTime = pKvsPeerConnection->pDtlsSession->dtlsSessionSetupTime;
             break;
         case RTC_DTLS_TRANSPORT_STATE_CLOSED:

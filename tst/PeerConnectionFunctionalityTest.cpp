@@ -670,7 +670,7 @@ TEST_F(PeerConnectionFunctionalityTest, noLostFramesAfterConnected)
         CVAR_WAIT(context.cvar, context.mutex, INFINITE_TIME_VALUE);
     }
     MUTEX_UNLOCK(context.mutex);
-
+    DLOGI("Context set up..moving on");
     for (BYTE i = 1; i <= 3; i++) {
         videoFrame.frameData[0] = i;
         EXPECT_EQ(writeFrame(offerVideoTransceiver, &videoFrame), STATUS_SUCCESS);
