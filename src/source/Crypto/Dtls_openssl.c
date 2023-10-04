@@ -478,6 +478,11 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
                     if (dtlsTimeoutRet < 0) {
                         pDtlsSession->handshakeState = DTLS_STATE_HANDSHAKE_ERROR;
                     } else {
+                        // Add a check for shutdown right before blocking on CVAR_WAIT
+                        if (ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown)) {
+                            pDtlsSession->handshakeState = DTLS_STATE_HANDSHAKE_ERROR;
+                            break;
+                        }
                         BOOL timedOut = (CVAR_WAIT(pDtlsSession->cvar, pDtlsSession->sslLock, waitTime) == STATUS_OPERATION_TIMED_OUT);
 
                         // We start calculating start of handshake DTLS handshake time taken in server mode only after clientHello
@@ -558,10 +563,15 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
         SSL_CTX_free(pDtlsSession->pSslCtx);
     }
 
+    // Broadcast any waiting threads on condition variable
+    CVAR_BROADCAST(pDtlsSession->cvar);
+    if (IS_VALID_CVAR_VALUE(pDtlsSession->cvar)) {
+        CVAR_FREE(pDtlsSession->cvar);
+    }
+
     if (IS_VALID_MUTEX_VALUE(pDtlsSession->sslLock)) {
         // Adding this to ensure free gets the mutex before freeing the object
         MUTEX_LOCK(pDtlsSession->sslLock);
-        CVAR_BROADCAST(pDtlsSession->cvar);
         if (IS_VALID_CVAR_VALUE(pDtlsSession->cvar)) {
             CVAR_FREE(pDtlsSession->cvar);
         }
