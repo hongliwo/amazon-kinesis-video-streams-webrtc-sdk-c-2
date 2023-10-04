@@ -480,13 +480,13 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
                     if (dtlsTimeoutRet < 0) {
                         pDtlsSession->handshakeState = DTLS_STATE_HANDSHAKE_ERROR;
                     } else {
-                        while(!ATOMIC_LOAD_BOOL(&pDtlsSession->dataReceived)) {
-                            timedOut = (CVAR_WAIT(pDtlsSession->cvar, pDtlsSession->sslLock, waitTime) == STATUS_OPERATION_TIMED_OUT);
-                        }
-                        if (timedOut) {
-                            DLOGD("DTLS handshake timeout event occurred, going to retransmit");
-                            DTLSv1_handle_timeout(pDtlsSession->pSsl);
-                        }
+//                        while(!ATOMIC_LOAD_BOOL(&pDtlsSession->dataReceived)) {
+//                            timedOut = (CVAR_WAIT(pDtlsSession->cvar, pDtlsSession->sslLock, waitTime) == STATUS_OPERATION_TIMED_OUT);
+//                        }
+//                        if (timedOut) {
+//                            DLOGD("DTLS handshake timeout event occurred, going to retransmit");
+//                            DTLSv1_handle_timeout(pDtlsSession->pSsl);
+//                        }
 
                         // We start calculating start of handshake DTLS handshake time taken in server mode only after clientHello
                         // is received, until then, we are only waiting, so we should not count that time into handshake latency
