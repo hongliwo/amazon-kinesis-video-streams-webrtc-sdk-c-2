@@ -29,7 +29,7 @@ class DtlsFunctionalityTest : public WebRtcClientTestBase {
         };
         callbacks.stateChangeFnCustomData = (UINT64) &connectedCount;
 
-        DtlsSessionOutboundPacketFunc outboundPacketFn = [](UINT64 customData, PBYTE pData, UINT32 dataLen) {
+        DtlsSessionOutboundPacketFunc outboundPacketFn = [](UINT64 customData, PBYTE pData, UINT32 dataLen) ->STATUS {
             Context* pCtx = (Context*) customData;
             // since we're not in google test block, we can't use ASSERT_TRUE
             assert(pCtx != NULL);
@@ -37,6 +37,7 @@ class DtlsFunctionalityTest : public WebRtcClientTestBase {
             pCtx->mtx.lock();
             pCtx->queue.push(std::vector<BYTE>(pData, pData + dataLen));
             pCtx->mtx.unlock();
+            return STATUS_SUCCESS;
         };
 
         auto consumeMessages = [](Context* pCtx, PDtlsSession pPeer) -> STATUS {
@@ -98,11 +99,12 @@ class DtlsFunctionalityTest : public WebRtcClientTestBase {
     }
 };
 
-VOID outboundPacketFnNoop(UINT64 customData, PBYTE pData, UINT32 dataLen)
+STATUS outboundPacketFnNoop(UINT64 customData, PBYTE pData, UINT32 dataLen)
 {
     UNUSED_PARAM(customData);
     UNUSED_PARAM(pData);
     UNUSED_PARAM(dataLen);
+    return STATUS_SUCCESS;
 }
 
 TEST_F(DtlsFunctionalityTest, putApplicationDataWithVariedSizes)

@@ -480,13 +480,13 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
                     if (dtlsTimeoutRet < 0) {
                         pDtlsSession->handshakeState = DTLS_STATE_HANDSHAKE_ERROR;
                     } else {
-//                        while(!ATOMIC_LOAD_BOOL(&pDtlsSession->dataReceived)) {
-//                            timedOut = (CVAR_WAIT(pDtlsSession->cvar, pDtlsSession->sslLock, waitTime) == STATUS_OPERATION_TIMED_OUT);
-//                        }
-//                        if (timedOut) {
-//                            DLOGD("DTLS handshake timeout event occurred, going to retransmit");
-//                            DTLSv1_handle_timeout(pDtlsSession->pSsl);
-//                        }
+                        while (!ATOMIC_LOAD_BOOL(&pDtlsSession->dataReceived)) {
+                            timedOut = (CVAR_WAIT(pDtlsSession->cvar, pDtlsSession->sslLock, waitTime) == STATUS_OPERATION_TIMED_OUT);
+                        }
+                        if (timedOut) {
+                            DLOGD("DTLS handshake timeout event occurred, going to retransmit");
+                            DTLSv1_handle_timeout(pDtlsSession->pSsl);
+                        }
 
                         // We start calculating start of handshake DTLS handshake time taken in server mode only after clientHello
                         // is received, until then, we are only waiting, so we should not count that time into handshake latency
@@ -497,7 +497,6 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
                         CHK(!(ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown)), STATUS_DTLS_SESSION_ALREADY_SHUTDOWN);
                         CHK_STATUS(dtlsCheckOutgoingDataBuffer(pDtlsSession));
                         DLOGI("Done with sending outgoing buffer");
-
                     }
                 }
                 break;
@@ -739,8 +738,8 @@ STATUS dtlsCheckOutgoingDataBuffer(PDtlsSession pDtlsSession)
     dataLenWritten = BIO_read(pWriteBIO, pDtlsSession->outgoingDataBuffer, ARRAY_SIZE(pDtlsSession->outgoingDataBuffer));
     if (dataLenWritten > 0) {
         pDtlsSession->outgoingDataLen = (UINT32) dataLenWritten;
-        pDtlsSession->dtlsSessionCallbacks.outboundPacketFn(pDtlsSession->dtlsSessionCallbacks.outBoundPacketFnCustomData,
-                                                            pDtlsSession->outgoingDataBuffer, pDtlsSession->outgoingDataLen);
+        retStatus = pDtlsSession->dtlsSessionCallbacks.outboundPacketFn(pDtlsSession->dtlsSessionCallbacks.outBoundPacketFnCustomData,
+                                                                        pDtlsSession->outgoingDataBuffer, pDtlsSession->outgoingDataLen);
     } else {
         LOG_OPENSSL_ERROR("BIO_read");
     }

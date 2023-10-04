@@ -632,20 +632,23 @@ CleanUp:
     CHK_LOG_ERR(retStatus);
 }
 
-VOID onDtlsOutboundPacket(UINT64 customData, PBYTE pBuffer, UINT32 bufferLen)
+STATUS onDtlsOutboundPacket(UINT64 customData, PBYTE pBuffer, UINT32 bufferLen)
 {
     PKvsPeerConnection pKvsPeerConnection = NULL;
-    if (customData == 0) {
-        return;
-    }
+    STATUS retStatus = STATUS_SUCCESS;
+    CHK(customData != 0, STATUS_NULL_ARG);
 
     pKvsPeerConnection = (PKvsPeerConnection) customData;
     // Ensure that the ICE agent is not being freed
-//    if (ATOMIC_LOAD_BOOL(&pKvsPeerConnection->isShuttingDown)) {
-//        DLOGI("Shutting down Peer connection, nothing to do");
-//        return;
-//    }
-    iceAgentSendPacket(pKvsPeerConnection->pIceAgent, pBuffer, bufferLen);
+
+    if (ATOMIC_LOAD_BOOL(&pKvsPeerConnection->isShuttingDown)) {
+        DLOGI("Shutting down Peer connection, nothing to do");
+        retStatus = STATUS_INVALID_ARG;
+    } else {
+        iceAgentSendPacket(pKvsPeerConnection->pIceAgent, pBuffer, bufferLen);
+    }
+CleanUp:
+    return retStatus;
 }
 
 VOID onDtlsStateChange(UINT64 customData, RTC_DTLS_TRANSPORT_STATE newDtlsState)
@@ -980,6 +983,7 @@ STATUS freePeerConnection(PRtcPeerConnection* ppPeerConnection)
     CHK(pKvsPeerConnection != NULL, retStatus);
 
     startTime = GETTIME();
+    DLOGI("Received free call");
     ATOMIC_STORE_BOOL(&pKvsPeerConnection->isShuttingDown, TRUE);
     /* Shutdown IceAgent first so there is no more incoming packets which can cause
      * SCTP to be allocated again after SCTP is freed. */
@@ -1570,6 +1574,7 @@ STATUS closePeerConnection(PRtcPeerConnection pPeerConnection)
     PKvsPeerConnection pKvsPeerConnection = (PKvsPeerConnection) pPeerConnection;
     UINT64 startTime = GETTIME();
     CHK(pKvsPeerConnection != NULL, STATUS_NULL_ARG);
+    DLOGI("Received close call");
     ATOMIC_STORE_BOOL(&pKvsPeerConnection->isShuttingDown, TRUE);
     CHK_LOG_ERR(dtlsSessionShutdown(pKvsPeerConnection->pDtlsSession));
     CHK_LOG_ERR(iceAgentShutdown(pKvsPeerConnection->pIceAgent));
