@@ -640,6 +640,11 @@ VOID onDtlsOutboundPacket(UINT64 customData, PBYTE pBuffer, UINT32 bufferLen)
     }
 
     pKvsPeerConnection = (PKvsPeerConnection) customData;
+    // Ensure that the ICE agent is not being freed
+    if (ATOMIC_LOAD_BOOL(&pKvsPeerConnection->isShuttingDown)) {
+        DLOGI("Shutting down Peer connection, nothing to do");
+        return;
+    }
     iceAgentSendPacket(pKvsPeerConnection->pIceAgent, pBuffer, bufferLen);
 }
 
@@ -889,6 +894,7 @@ STATUS createPeerConnection(PRtcConfiguration pConfiguration, PRtcPeerConnection
     CHK_STATUS(timerQueueCreate(&pKvsPeerConnection->timerQueueHandle));
 
     pKvsPeerConnection->peerConnection.version = PEER_CONNECTION_CURRENT_VERSION;
+    ATOMIC_STORE_BOOL(&pKvsPeerConnection->isShuttingDown, FALSE);
     CHK_STATUS(generateJSONSafeString(pKvsPeerConnection->localIceUfrag, LOCAL_ICE_UFRAG_LEN));
     CHK_STATUS(generateJSONSafeString(pKvsPeerConnection->localIcePwd, LOCAL_ICE_PWD_LEN));
     CHK_STATUS(generateJSONSafeString(pKvsPeerConnection->localCNAME, LOCAL_CNAME_LEN));
@@ -974,6 +980,7 @@ STATUS freePeerConnection(PRtcPeerConnection* ppPeerConnection)
     CHK(pKvsPeerConnection != NULL, retStatus);
 
     startTime = GETTIME();
+    ATOMIC_STORE_BOOL(&pKvsPeerConnection->isShuttingDown, TRUE);
     /* Shutdown IceAgent first so there is no more incoming packets which can cause
      * SCTP to be allocated again after SCTP is freed. */
     CHK_LOG_ERR(iceAgentShutdown(pKvsPeerConnection->pIceAgent));
@@ -988,7 +995,6 @@ STATUS freePeerConnection(PRtcPeerConnection* ppPeerConnection)
 #ifdef ENABLE_DATA_CHANNEL
     CHK_LOG_ERR(freeSctpSession(&pKvsPeerConnection->pSctpSession));
 #endif
-    CHK_LOG_ERR(freeIceAgent(&pKvsPeerConnection->pIceAgent));
 
     // free transceivers
     CHK_LOG_ERR(doubleListGetHeadNode(pKvsPeerConnection->pTransceivers, &pCurNode));
@@ -1014,6 +1020,7 @@ STATUS freePeerConnection(PRtcPeerConnection* ppPeerConnection)
     // free rest of structs
     CHK_LOG_ERR(freeSrtpSession(&pKvsPeerConnection->pSrtpSession));
     CHK_LOG_ERR(freeDtlsSession(&pKvsPeerConnection->pDtlsSession));
+    CHK_LOG_ERR(freeIceAgent(&pKvsPeerConnection->pIceAgent));
     CHK_LOG_ERR(doubleListFree(pKvsPeerConnection->pTransceivers));
     CHK_LOG_ERR(doubleListFree(pKvsPeerConnection->pFakeTransceivers));
     CHK_LOG_ERR(doubleListFree(pKvsPeerConnection->pAnswerTransceivers));
@@ -1563,6 +1570,7 @@ STATUS closePeerConnection(PRtcPeerConnection pPeerConnection)
     PKvsPeerConnection pKvsPeerConnection = (PKvsPeerConnection) pPeerConnection;
     UINT64 startTime = GETTIME();
     CHK(pKvsPeerConnection != NULL, STATUS_NULL_ARG);
+    ATOMIC_STORE_BOOL(&pKvsPeerConnection->isShuttingDown, TRUE);
     CHK_LOG_ERR(dtlsSessionShutdown(pKvsPeerConnection->pDtlsSession));
     CHK_LOG_ERR(iceAgentShutdown(pKvsPeerConnection->pIceAgent));
     PROFILE_WITH_START_TIME_OBJ(startTime, pKvsPeerConnection->peerConnectionDiagnostics.closePeerConnectionTime, "Close peer connection");

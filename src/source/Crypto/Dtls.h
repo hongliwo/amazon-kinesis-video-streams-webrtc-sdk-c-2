@@ -115,6 +115,7 @@ struct __DtlsSession {
     DTLS_HANDSHAKE_STATE handshakeState;
     MUTEX sslLock;
     volatile SIZE_T refCount; // reference count
+    volatile ATOMIC_BOOL dataReceived;
 
 #ifdef KVS_USE_OPENSSL
     volatile ATOMIC_BOOL sslInitFinished;

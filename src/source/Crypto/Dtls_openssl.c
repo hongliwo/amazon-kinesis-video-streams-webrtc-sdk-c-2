@@ -421,6 +421,7 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
     BOOL firstMsg = TRUE;
     UINT64 waitTime = INFINITE_TIME_VALUE;
     BOOL dtlsHandshakeErrored = FALSE;
+    BOOL timedOut = FALSE;
     MEMSET(&timeout, 0x00, SIZEOF(struct timeval));
 
     CHK(pDtlsSession != NULL && pDtlsSession != NULL, STATUS_NULL_ARG);
@@ -479,7 +480,13 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
                     if (dtlsTimeoutRet < 0) {
                         pDtlsSession->handshakeState = DTLS_STATE_HANDSHAKE_ERROR;
                     } else {
-                        BOOL timedOut = (CVAR_WAIT(pDtlsSession->cvar, pDtlsSession->sslLock, waitTime) == STATUS_OPERATION_TIMED_OUT);
+                        while(!ATOMIC_LOAD_BOOL(&pDtlsSession->dataReceived)) {
+                            timedOut = (CVAR_WAIT(pDtlsSession->cvar, pDtlsSession->sslLock, waitTime) == STATUS_OPERATION_TIMED_OUT);
+                        }
+                        if (timedOut) {
+                            DLOGD("DTLS handshake timeout event occurred, going to retransmit");
+                            DTLSv1_handle_timeout(pDtlsSession->pSsl);
+                        }
 
                         // We start calculating start of handshake DTLS handshake time taken in server mode only after clientHello
                         // is received, until then, we are only waiting, so we should not count that time into handshake latency
@@ -487,14 +494,10 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
                         if (isServer && firstMsg) {
                             pDtlsSession->dtlsSessionStartTime = GETTIME();
                         }
-
-                        if (timedOut) {
-                            DLOGD("DTLS handshake timeout event occurred, going to retransmit");
-                            DTLSv1_handle_timeout(pDtlsSession->pSsl);
-                        }
                         CHK(!(ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown)), STATUS_DTLS_SESSION_ALREADY_SHUTDOWN);
                         CHK_STATUS(dtlsCheckOutgoingDataBuffer(pDtlsSession));
                         DLOGI("Done with sending outgoing buffer");
+
                     }
                 }
                 break;
@@ -595,6 +598,7 @@ STATUS dtlsSessionProcessPacket(PDtlsSession pDtlsSession, PBYTE pData, PINT32 p
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
 
+    ATOMIC_STORE_BOOL(&pDtlsSession->dataReceived, TRUE);
     CVAR_BROADCAST(pDtlsSession->cvar);
 
     if (!ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown)) {
