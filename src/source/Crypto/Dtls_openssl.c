@@ -491,8 +491,9 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
                             DLOGD("DTLS handshake timeout event occurred, going to retransmit");
                             DTLSv1_handle_timeout(pDtlsSession->pSsl);
                         }
-
+                        CHK((ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown),
                         CHK_STATUS(dtlsCheckOutgoingDataBuffer(pDtlsSession));
+                        DLOGI("Done with sending outgoing buffer");
                     }
                 }
                 break;
