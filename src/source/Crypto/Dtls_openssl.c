@@ -461,6 +461,7 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
                     sslErr = SSL_get_error(pDtlsSession->pSsl, sslRet);
                     if (sslErr == SSL_ERROR_WANT_READ || sslErr == SSL_ERROR_WANT_WRITE) {
                         // If OpenSSL wants to read or write, it's an indication we should check the BIO
+                        CHK(!(ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown)), STATUS_DTLS_SESSION_ALREADY_SHUTDOWN);
                         CHK_STATUS(dtlsCheckOutgoingDataBuffer(pDtlsSession));
                     } else {
                         // Handle other errors
@@ -491,7 +492,7 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
                             DLOGD("DTLS handshake timeout event occurred, going to retransmit");
                             DTLSv1_handle_timeout(pDtlsSession->pSsl);
                         }
-                        CHK((ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown),
+                        CHK(!(ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown)), STATUS_DTLS_SESSION_ALREADY_SHUTDOWN);
                         CHK_STATUS(dtlsCheckOutgoingDataBuffer(pDtlsSession));
                         DLOGI("Done with sending outgoing buffer");
                     }
@@ -572,7 +573,7 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
 
     SAFE_MEMFREE(pDtlsSession);
     *ppDtlsSession = NULL;
-
+    DLOGI("Free DTLS session done");
 CleanUp:
 
     LEAVES();
@@ -588,12 +589,14 @@ STATUS dtlsSessionProcessPacket(PDtlsSession pDtlsSession, PBYTE pData, PINT32 p
     INT32 dataLen = 0;
 
     CHK(pDtlsSession != NULL && pDtlsSession != NULL && pDataLen != NULL, STATUS_NULL_ARG);
+    CHK(ATOMIC_LOAD_BOOL(&pDtlsSession->isStarted), STATUS_SSL_PACKET_BEFORE_DTLS_READY);
 
     ATOMIC_INCREMENT(&pDtlsSession->refCount);
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
 
-    CHK(ATOMIC_LOAD_BOOL(&pDtlsSession->isStarted), STATUS_SSL_PACKET_BEFORE_DTLS_READY);
+    CVAR_BROADCAST(pDtlsSession->cvar);
+
     if (!ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown)) {
         sslRet = BIO_write(SSL_get_rbio(pDtlsSession->pSsl), pData, *pDataLen);
         if (sslRet <= 0) {
@@ -622,7 +625,6 @@ STATUS dtlsSessionProcessPacket(PDtlsSession pDtlsSession, PBYTE pData, PINT32 p
             ATOMIC_STORE_BOOL(&pDtlsSession->shutdown, TRUE);
             CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CLOSED));
         }
-        CVAR_BROADCAST(pDtlsSession->cvar);
     }
 CleanUp:
     CHK_LOG_ERR(retStatus);
