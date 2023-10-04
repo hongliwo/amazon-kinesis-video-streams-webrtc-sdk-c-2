@@ -184,6 +184,7 @@ TEST_F(PeerConnectionApiTest, connectionState)
 {
     PRtcPeerConnection pc = nullptr;
     RtcConfiguration config{};
+    DLOGI("Creating peer connection");
     EXPECT_EQ(STATUS_SUCCESS, createPeerConnection(&config, &pc));
     DLOGI("Created peer connection");
     EXPECT_EQ(RTC_PEER_CONNECTION_STATE_NEW, fromIceAgentState(pc, ICE_AGENT_STATE_NEW));
@@ -201,7 +202,7 @@ TEST_F(PeerConnectionApiTest, connectionState)
     DLOGI("Here6");
     EXPECT_EQ(RTC_PEER_CONNECTION_STATE_FAILED, fromIceAgentState(pc, ICE_AGENT_STATE_FAILED));
     DLOGI("Here6");
-
+    closePeerConnection(pc);
     freePeerConnection(&pc);
 }
 

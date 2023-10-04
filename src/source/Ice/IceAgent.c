@@ -647,11 +647,12 @@ STATUS iceAgentSendPacket(PIceAgent pIceAgent, PBYTE pBuffer, UINT32 bufferLen)
     CHK(pIceAgent != NULL && pBuffer != NULL, STATUS_NULL_ARG);
     CHK(bufferLen != 0, STATUS_INVALID_ARG);
 
+    /* Do not proceed if ice is shutting down */
+    CHK(!ATOMIC_LOAD_BOOL(&pIceAgent->shutdown), retStatus);
+
     MUTEX_LOCK(pIceAgent->lock);
     locked = TRUE;
 
-    /* Do not proceed if ice is shutting down */
-    CHK(!ATOMIC_LOAD_BOOL(&pIceAgent->shutdown), retStatus);
     CHK(bufferLen != 0, STATUS_INVALID_ARG);
 
     CHK_WARN(pIceAgent->pDataSendingIceCandidatePair != NULL, retStatus, "No valid ice candidate pair available to send data");

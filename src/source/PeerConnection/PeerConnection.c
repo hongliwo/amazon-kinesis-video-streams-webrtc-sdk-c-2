@@ -925,7 +925,6 @@ STATUS createPeerConnection(PRtcConfiguration pConfiguration, PRtcPeerConnection
     PROFILE_CALL(CHK_STATUS(createIceAgent(pKvsPeerConnection->localIceUfrag, pKvsPeerConnection->localIcePwd, &iceAgentCallbacks, pConfiguration,
                                            pKvsPeerConnection->timerQueueHandle, pConnectionListener, &pKvsPeerConnection->pIceAgent)),
                  "Create ICE agent object");
-
     NULLABLE_SET_EMPTY(pKvsPeerConnection->canTrickleIce);
 
     if (!pConfiguration->kvsRtcConfiguration.disableSenderSideBandwidthEstimation) {
