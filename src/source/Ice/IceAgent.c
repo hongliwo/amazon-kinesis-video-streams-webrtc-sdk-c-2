@@ -648,7 +648,7 @@ STATUS iceAgentSendPacket(PIceAgent pIceAgent, PBYTE pBuffer, UINT32 bufferLen)
     CHK(bufferLen != 0, STATUS_INVALID_ARG);
     DLOGI("Checking for shutdown..");
     /* Do not proceed if ice is shutting down */
-    CHK(!ATOMIC_LOAD_BOOL(&pIceAgent->shutdown), retStatus);
+    CHK(!ATOMIC_LOAD_BOOL(&pIceAgent->shutdown), STATUS_NULL_ARG);
     DLOGI("No shutdown in progress..");
     MUTEX_LOCK(pIceAgent->lock);
     locked = TRUE;

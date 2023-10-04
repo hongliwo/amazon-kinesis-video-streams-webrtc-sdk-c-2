@@ -988,7 +988,6 @@ STATUS freePeerConnection(PRtcPeerConnection* ppPeerConnection)
 #ifdef ENABLE_DATA_CHANNEL
     CHK_LOG_ERR(freeSctpSession(&pKvsPeerConnection->pSctpSession));
 #endif
-    CHK_LOG_ERR(freeDtlsSession(&pKvsPeerConnection->pDtlsSession));
     CHK_LOG_ERR(freeIceAgent(&pKvsPeerConnection->pIceAgent));
 
     // free transceivers
@@ -1014,6 +1013,7 @@ STATUS freePeerConnection(PRtcPeerConnection* ppPeerConnection)
 
     // free rest of structs
     CHK_LOG_ERR(freeSrtpSession(&pKvsPeerConnection->pSrtpSession));
+    CHK_LOG_ERR(freeDtlsSession(&pKvsPeerConnection->pDtlsSession));
     CHK_LOG_ERR(doubleListFree(pKvsPeerConnection->pTransceivers));
     CHK_LOG_ERR(doubleListFree(pKvsPeerConnection->pFakeTransceivers));
     CHK_LOG_ERR(doubleListFree(pKvsPeerConnection->pAnswerTransceivers));
