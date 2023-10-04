@@ -641,12 +641,12 @@ STATUS onDtlsOutboundPacket(UINT64 customData, PBYTE pBuffer, UINT32 bufferLen)
     pKvsPeerConnection = (PKvsPeerConnection) customData;
     // Ensure that the ICE agent is not being freed
 
-    if (ATOMIC_LOAD_BOOL(&pKvsPeerConnection->isShuttingDown)) {
-        DLOGI("Shutting down Peer connection, nothing to do");
-        retStatus = STATUS_INVALID_ARG;
-    } else {
-        iceAgentSendPacket(pKvsPeerConnection->pIceAgent, pBuffer, bufferLen);
-    }
+    //    if (ATOMIC_LOAD_BOOL(&pKvsPeerConnection->isShuttingDown)) {
+    //        DLOGI("Shutting down Peer connection, nothing to do");
+    //        retStatus = STATUS_INVALID_ARG;
+    //    } else {
+    iceAgentSendPacket(pKvsPeerConnection->pIceAgent, pBuffer, bufferLen);
+//    }
 CleanUp:
     return retStatus;
 }

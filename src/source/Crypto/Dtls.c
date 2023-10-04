@@ -72,7 +72,7 @@ STATUS dtlsSessionChangeState(PDtlsSession pDtlsSession, RTC_DTLS_TRANSPORT_STAT
 
     CHK(pDtlsSession != NULL, STATUS_NULL_ARG);
     CHK(pDtlsSession->state != newState, retStatus);
-
+    DLOGI("Changing state to %d", pDtlsSession->state);
     if (pDtlsSession->state == RTC_DTLS_TRANSPORT_STATE_CONNECTING && newState == RTC_DTLS_TRANSPORT_STATE_CONNECTED) {
         // Need to set this so that we do not calculate the time taken again. We set the new state in 2 different places
         if (pDtlsSession->dtlsSessionStartTime != 0) {
