@@ -12,8 +12,6 @@ INT32 dtlsCertificateVerifyCallback(INT32 preverify_ok, X509_STORE_CTX* ctx)
 
 VOID acquireDtlsSession(PDtlsSession pDtlsSession, PCHAR msg)
 {
-    static int ctr = 0;
-    DLOGI("[%s] Acquire invoked: %d", msg, ctr++);
     if (pDtlsSession != NULL) {
         ATOMIC_INCREMENT(&pDtlsSession->refCount);
     }
@@ -21,11 +19,9 @@ VOID acquireDtlsSession(PDtlsSession pDtlsSession, PCHAR msg)
 
 VOID releaseDtlsSession(PDtlsSession pDtlsSession, PCHAR msg)
 {
-    static int ctr = 0;
     if (pDtlsSession != NULL) {
         ATOMIC_DECREMENT(&pDtlsSession->refCount);
     }
-    DLOGI("[%s] Release invoked: %d", msg, ctr++);
 }
 
 STATUS dtlsCertificateFingerprint(X509* pCertificate, PCHAR pBuff)
