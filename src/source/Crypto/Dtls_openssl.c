@@ -446,7 +446,6 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
     DLOGI("In DTLS Handshake session");
     CHK(pDtlsSession != NULL && pDtlsSession != NULL, STATUS_NULL_ARG);
 
-    DLOGI("Session already shut down...nothing to do");
     acquireDtlsSession(pDtlsSession);
 
     MUTEX_LOCK(pDtlsSession->sslLock);
@@ -467,7 +466,6 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
         SSL_set_connect_state(pDtlsSession->pSsl);
     }
 
-    DLOGI("Starting the session");
     if (!isServer) {
         pDtlsSession->dtlsSessionStartTime = GETTIME();
     }
@@ -579,7 +577,6 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
         SSL_CTX_free(pDtlsSession->pSslCtx);
     }
 
-
     if (IS_VALID_MUTEX_VALUE(pDtlsSession->sslLock)) {
         // Adding this to ensure free gets the mutex before freeing the object
         CVAR_BROADCAST(pDtlsSession->cvar);
@@ -631,6 +628,10 @@ STATUS dtlsSessionProcessPacket(PDtlsSession pDtlsSession, PBYTE pData, PINT32 p
             isClosed = TRUE;
         } else if (sslRet <= 0) {
             LOG_OPENSSL_ERROR("SSL_read");
+        }
+
+        if (!ATOMIC_LOAD_BOOL(&pDtlsSession->sslInitFinished)) {
+            CHK_STATUS(dtlsCheckOutgoingDataBuffer(pDtlsSession));
         }
 
         /* if SSL_read failed then set to 0 */
