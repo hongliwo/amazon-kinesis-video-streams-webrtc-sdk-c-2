@@ -446,7 +446,7 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
 
     CHK(pDtlsSession != NULL && pDtlsSession != NULL, STATUS_NULL_ARG);
     acquireDtlsSession(pDtlsSession);
-    CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown), retStatus);
+    CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown), STATUS_DTLS_SESSION_ALREADY_SHUTDOWN);
     CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->isStarted), retStatus);
 
     MUTEX_LOCK(pDtlsSession->sslLock);
@@ -578,15 +578,16 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
         SSL_CTX_free(pDtlsSession->pSslCtx);
     }
 
-    if (IS_VALID_CVAR_VALUE(pDtlsSession->cvar)) {
-        CVAR_FREE(pDtlsSession->cvar);
-    }
 
     if (IS_VALID_MUTEX_VALUE(pDtlsSession->sslLock)) {
         // Adding this to ensure free gets the mutex before freeing the object
         MUTEX_LOCK(pDtlsSession->sslLock);
+        CVAR_BROADCAST(pDtlsSession->cvar);
         MUTEX_UNLOCK(pDtlsSession->sslLock);
         MUTEX_FREE(pDtlsSession->sslLock);
+    }
+    if (IS_VALID_CVAR_VALUE(pDtlsSession->cvar)) {
+        CVAR_FREE(pDtlsSession->cvar);
     }
 
     SAFE_MEMFREE(pDtlsSession);
