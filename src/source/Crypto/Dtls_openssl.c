@@ -429,6 +429,7 @@ STATUS dtlsSessionStart(PDtlsSession pDtlsSession, BOOL isServer)
     locked = TRUE;
 
     CHK_STATUS(beginHandshakeProcess(pDtlsSession, isServer, &sslRet));
+    pDtlsSession->dtlsSessionStartTime = GETTIME();
     CHK_STATUS(timerQueueAddTimer(pDtlsSession->timerQueueHandle, DTLS_SESSION_TIMER_START_DELAY, DTLS_TRANSMISSION_INTERVAL,
                                   dtlsTransmissionTimerCallback, (UINT64) pDtlsSession, &pDtlsSession->timerId));
 
