@@ -443,15 +443,17 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
     BOOL dtlsHandshakeErrored = FALSE;
     BOOL timedOut = FALSE;
     MEMSET(&timeout, 0x00, SIZEOF(struct timeval));
-    DLOGI("In DTLS Handshake session")
+    DLOGI("In DTLS Handshake session");
     CHK(pDtlsSession != NULL && pDtlsSession != NULL, STATUS_NULL_ARG);
-    CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown), STATUS_DTLS_SESSION_ALREADY_SHUTDOWN);
+
     DLOGI("Session already shut down...nothing to do");
     acquireDtlsSession(pDtlsSession);
-    CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->isStarted), retStatus);
 
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
+
+    CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown), STATUS_DTLS_SESSION_ALREADY_SHUTDOWN);
+    CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->isStarted), retStatus);
 
     CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CONNECTING));
 
