@@ -105,6 +105,7 @@ typedef struct __DtlsSession DtlsSession, *PDtlsSession;
 struct __DtlsSession {
     volatile ATOMIC_BOOL isStarted;
     volatile ATOMIC_BOOL shutdown;
+    volatile ATOMIC_BOOL isCleanUp;
     UINT32 certificateCount;
     DtlsSessionCallbacks dtlsSessionCallbacks;
     TIMER_QUEUE_HANDLE timerQueueHandle;
@@ -177,7 +178,7 @@ STATUS dtlsSessionShutdown(PDtlsSession);
 
 STATUS dtlsSessionOnOutBoundData(PDtlsSession, UINT64, DtlsSessionOutboundPacketFunc);
 STATUS dtlsSessionOnStateChange(PDtlsSession, UINT64, DtlsSessionOnStateChange);
-STATUS dtlsSessionHandshakeStart(PDtlsSession, BOOL);
+STATUS dtlsSessionStartInThread(PDtlsSession, BOOL);
 
 /******** Internal Functions **********/
 STATUS dtlsValidateRtcCertificates(PRtcCertificate, PUINT32);

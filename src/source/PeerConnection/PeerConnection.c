@@ -442,8 +442,8 @@ CleanUp:
 PVOID dtlsSessionStartThread(PVOID args)
 {
     PKvsPeerConnection pKvsPeerConnection = (PKvsPeerConnection) args;
-    DLOGI("Executing in the thread");
-    dtlsSessionHandshakeStart(pKvsPeerConnection->pDtlsSession, pKvsPeerConnection->dtlsIsServer);
+    DLOGI("Executing DTLS handshake in the threadpool");
+    dtlsSessionStartInThread(pKvsPeerConnection->pDtlsSession, pKvsPeerConnection->dtlsIsServer);
     return NULL;
 }
 
@@ -991,6 +991,7 @@ STATUS freePeerConnection(PRtcPeerConnection* ppPeerConnection)
 
     // free timer queue first to remove liveness provided by timer
     if (IS_VALID_TIMER_QUEUE_HANDLE(pKvsPeerConnection->timerQueueHandle)) {
+        DLOGI("Shutdown timer queue");
         timerQueueShutdown(pKvsPeerConnection->timerQueueHandle);
     }
 
