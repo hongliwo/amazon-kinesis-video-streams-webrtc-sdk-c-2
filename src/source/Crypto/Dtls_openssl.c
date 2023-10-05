@@ -445,9 +445,8 @@ STATUS dtlsSessionHandshakeStart(PDtlsSession pDtlsSession, BOOL isServer)
     MEMSET(&timeout, 0x00, SIZEOF(struct timeval));
 
     CHK(pDtlsSession != NULL && pDtlsSession != NULL, STATUS_NULL_ARG);
-
     acquireDtlsSession(pDtlsSession);
-
+    CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown), retStatus);
     CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->isStarted), retStatus);
 
     MUTEX_LOCK(pDtlsSession->sslLock);
@@ -720,8 +719,8 @@ STATUS dtlsSessionShutdown(PDtlsSession pDtlsSession)
 
     SSL_shutdown(pDtlsSession->pSsl);
     ATOMIC_STORE_BOOL(&pDtlsSession->shutdown, TRUE);
-    dtlsCheckOutgoingDataBuffer(pDtlsSession);
     CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CLOSED));
+    dtlsCheckOutgoingDataBuffer(pDtlsSession);
 
 CleanUp:
 
