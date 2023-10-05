@@ -14,14 +14,18 @@ VOID acquireDtlsSession(PDtlsSession pDtlsSession, PCHAR msg)
 {
     static int ctr = 0;
     DLOGI("[%s] Acquire invoked: %d", msg, ctr++);
-    ATOMIC_INCREMENT(&pDtlsSession->refCount);
+    if (pDtlsSession != NULL) {
+        ATOMIC_INCREMENT(&pDtlsSession->refCount);
+    }
 }
 
 VOID releaseDtlsSession(PDtlsSession pDtlsSession, PCHAR msg)
 {
     static int ctr = 0;
+    if (pDtlsSession != NULL) {
+        ATOMIC_DECREMENT(&pDtlsSession->refCount);
+    }
     DLOGI("[%s] Release invoked: %d", msg, ctr++);
-    ATOMIC_DECREMENT(&pDtlsSession->refCount);
 }
 
 STATUS dtlsCertificateFingerprint(X509* pCertificate, PCHAR pBuff)
@@ -292,6 +296,7 @@ STATUS createDtlsSession(PDtlsSessionCallbacks pDtlsSessionCallbacks, TIMER_QUEU
     PDtlsSession pDtlsSession = NULL;
     UINT32 i, certCount;
     UINT64 startTimeInMacro = 0;
+    BOOL acquired = FALSE;
     DtlsSessionCertificateInfo certInfos[MAX_RTCCONFIGURATION_CERTIFICATES];
     MEMSET(certInfos, 0x00, SIZEOF(certInfos));
 
@@ -302,6 +307,7 @@ STATUS createDtlsSession(PDtlsSessionCallbacks pDtlsSessionCallbacks, TIMER_QUEU
     CHK(pDtlsSession != NULL, STATUS_NOT_ENOUGH_MEMORY);
 
     acquireDtlsSession(pDtlsSession, "Create session");
+    acquired = TRUE;
 
     pDtlsSession->timerQueueHandle = timerQueueHandle;
     pDtlsSession->timerId = MAX_UINT32;
@@ -350,7 +356,10 @@ CleanUp:
         }
     }
 
-    releaseDtlsSession(pDtlsSession, "Create session");
+    if (acquired) {
+        releaseDtlsSession(pDtlsSession, "Create session");
+    }
+
     if (STATUS_FAILED(retStatus)) {
         freeDtlsSession(&pDtlsSession);
     }
