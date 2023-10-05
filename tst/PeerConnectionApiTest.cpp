@@ -184,25 +184,15 @@ TEST_F(PeerConnectionApiTest, connectionState)
 {
     PRtcPeerConnection pc = nullptr;
     RtcConfiguration config{};
-    DLOGI("Creating peer connection");
     EXPECT_EQ(STATUS_SUCCESS, createPeerConnection(&config, &pc));
-    DLOGI("Created peer connection");
     EXPECT_EQ(RTC_PEER_CONNECTION_STATE_NEW, fromIceAgentState(pc, ICE_AGENT_STATE_NEW));
-    DLOGI("Here1");
     EXPECT_EQ(RTC_PEER_CONNECTION_STATE_CONNECTING, fromIceAgentState(pc, ICE_AGENT_STATE_CHECK_CONNECTION));
     // RTC_PEER_CONNECTION_STATE is set to CONNECTED only when dtls is connected therefore ICE_AGENT_STATE_CONNECTED is still considered CONNECTING
-    DLOGI("Here2");
     EXPECT_EQ(RTC_PEER_CONNECTION_STATE_CONNECTING, fromIceAgentState(pc, ICE_AGENT_STATE_CONNECTED));
-    DLOGI("Here3");
     EXPECT_EQ(RTC_PEER_CONNECTION_STATE_CONNECTING, fromIceAgentState(pc, ICE_AGENT_STATE_NOMINATING));
-    DLOGI("Here4");
     EXPECT_EQ(RTC_PEER_CONNECTION_STATE_CONNECTING, fromIceAgentState(pc, ICE_AGENT_STATE_READY));
-    DLOGI("Here5");
     EXPECT_EQ(RTC_PEER_CONNECTION_STATE_DISCONNECTED, fromIceAgentState(pc, ICE_AGENT_STATE_DISCONNECTED));
-    DLOGI("Here6");
     EXPECT_EQ(RTC_PEER_CONNECTION_STATE_FAILED, fromIceAgentState(pc, ICE_AGENT_STATE_FAILED));
-    DLOGI("Here6");
-    closePeerConnection(pc);
     freePeerConnection(&pc);
 }
 
