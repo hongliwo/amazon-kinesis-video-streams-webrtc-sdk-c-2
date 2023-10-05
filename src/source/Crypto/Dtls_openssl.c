@@ -571,7 +571,7 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
     if (pDtlsSession->timerId != MAX_UINT32) {
         timerQueueCancelTimer(pDtlsSession->timerQueueHandle, pDtlsSession->timerId, (UINT64) pDtlsSession);
     }
-
+    MUTEX_LOCK(pDtlsSession->sslLock);
     if (pDtlsSession->pSsl != NULL) {
         SSL_free(pDtlsSession->pSsl);
     }
@@ -582,7 +582,6 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
 
     if (IS_VALID_MUTEX_VALUE(pDtlsSession->sslLock)) {
         // Adding this to ensure free gets the mutex before freeing the object
-        MUTEX_LOCK(pDtlsSession->sslLock);
         CVAR_BROADCAST(pDtlsSession->cvar);
         MUTEX_UNLOCK(pDtlsSession->sslLock);
         MUTEX_FREE(pDtlsSession->sslLock);
