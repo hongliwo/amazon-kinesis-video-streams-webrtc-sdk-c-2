@@ -180,9 +180,7 @@ VOID onInboundPacket(UINT64 customData, PBYTE buff, UINT32 buffLen)
         CHK_STATUS(dtlsSessionIsInitFinished(pKvsPeerConnection->pDtlsSession, &isDtlsConnected));
         if (isDtlsConnected) {
             if (pKvsPeerConnection->pSrtpSession == NULL) {
-                DLOGI("Allocating SRTP...DTLS init is done");
                 CHK_STATUS(allocateSrtp(pKvsPeerConnection));
-                DLOGI("Allocation done");
             }
 
 #ifdef ENABLE_DATA_CHANNEL
@@ -641,12 +639,12 @@ STATUS onDtlsOutboundPacket(UINT64 customData, PBYTE pBuffer, UINT32 bufferLen)
     pKvsPeerConnection = (PKvsPeerConnection) customData;
     // Ensure that the ICE agent is not being freed
 
-    //    if (ATOMIC_LOAD_BOOL(&pKvsPeerConnection->isShuttingDown)) {
-    //        DLOGI("Shutting down Peer connection, nothing to do");
-    //        retStatus = STATUS_INVALID_ARG;
-    //    } else {
-    iceAgentSendPacket(pKvsPeerConnection->pIceAgent, pBuffer, bufferLen);
-//    }
+    if (ATOMIC_LOAD_BOOL(&pKvsPeerConnection->isShuttingDown)) {
+        DLOGI("Shutting down Peer connection, nothing to do");
+        retStatus = STATUS_INVALID_ARG;
+    } else {
+        iceAgentSendPacket(pKvsPeerConnection->pIceAgent, pBuffer, bufferLen);
+    }
 CleanUp:
     return retStatus;
 }
@@ -991,7 +989,6 @@ STATUS freePeerConnection(PRtcPeerConnection* ppPeerConnection)
 
     // free timer queue first to remove liveness provided by timer
     if (IS_VALID_TIMER_QUEUE_HANDLE(pKvsPeerConnection->timerQueueHandle)) {
-        DLOGI("Shutdown timer queue");
         timerQueueShutdown(pKvsPeerConnection->timerQueueHandle);
     }
 
