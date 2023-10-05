@@ -151,9 +151,9 @@ TEST_F(DtlsFunctionalityTest, processPacketWithVariedSizes)
 
     EXPECT_EQ(STATUS_SUCCESS, timerQueueCreate(&timerQueueHandle));
     EXPECT_EQ(STATUS_SUCCESS, createAndConnect(timerQueueHandle, &pClient, &pServer));
-
     EXPECT_EQ(STATUS_SUCCESS, dtlsSessionOnOutBoundData(pServer, 0, outboundPacketFnNoop));
     EXPECT_EQ(STATUS_SUCCESS, dtlsSessionOnOutBoundData(pClient, 0, outboundPacketFnNoop));
+
 
     for (int i = 0; i < (INT32) ARRAY_SIZE(dataSizes); i++) {
         pData = (PBYTE) MEMREALLOC(pData, dataSizes[i]);
