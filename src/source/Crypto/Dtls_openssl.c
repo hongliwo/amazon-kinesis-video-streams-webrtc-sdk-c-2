@@ -382,7 +382,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS beginHandshakeProcess(PDtlsSession pDtlsSession, PINT32 sslRet)
+STATUS beginHandshakeProcess(PDtlsSession pDtlsSession, BOOL isServer, PINT32 sslRet)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -397,13 +397,13 @@ STATUS beginHandshakeProcess(PDtlsSession pDtlsSession, PINT32 sslRet)
      * dont proceed before dtlsSessionStart finish */
     ATOMIC_STORE_BOOL(&pDtlsSession->isStarted, TRUE);
 
-    if (pDtlsSession->isServer) {
+    if (isServer) {
         SSL_set_accept_state(pDtlsSession->pSsl);
     } else {
         SSL_set_connect_state(pDtlsSession->pSsl);
     }
 
-    if (!pDtlsSession->isServer) {
+    if (!isServer) {
         pDtlsSession->dtlsSessionStartTime = GETTIME();
     }
     *sslRet = SSL_do_handshake(pDtlsSession->pSsl);
@@ -414,13 +414,38 @@ CleanUp:
     return retStatus;
 }
 
-PVOID test(PVOID args)
+STATUS dtlsSessionStart(PDtlsSession pDtlsSession, BOOL isServer)
 {
-    DLOGI("Here in test");
-    return NULL;
+    ENTERS();
+    STATUS retStatus = STATUS_SUCCESS;
+    BOOL locked = FALSE;
+    INT32 sslRet;
+
+    CHK(pDtlsSession != NULL && pDtlsSession != NULL, STATUS_NULL_ARG);
+
+    acquireDtlsSession(pDtlsSession);
+
+    MUTEX_LOCK(pDtlsSession->sslLock);
+    locked = TRUE;
+
+    CHK_STATUS(beginHandshakeProcess(pDtlsSession, isServer, &sslRet));
+    pDtlsSession->dtlsSessionStartTime = GETTIME();
+    CHK_STATUS(timerQueueAddTimer(pDtlsSession->timerQueueHandle, DTLS_SESSION_TIMER_START_DELAY, DTLS_TRANSMISSION_INTERVAL,
+                                  dtlsTransmissionTimerCallback, (UINT64) pDtlsSession, &pDtlsSession->timerId));
+
+CleanUp:
+
+    CHK_LOG_ERR(retStatus);
+    if (locked) {
+        MUTEX_UNLOCK(pDtlsSession->sslLock);
+    }
+    releaseDtlsSession(pDtlsSession);
+
+    LEAVES();
+    return retStatus;
 }
 
-PVOID dtlsSessionHandshakeThread(PVOID args)
+STATUS dtlsSessionStartInThread(PDtlsSession pDtlsSession, BOOL isServer)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -433,8 +458,6 @@ PVOID dtlsSessionHandshakeThread(PVOID args)
     BOOL dtlsHandshakeErrored = FALSE;
     BOOL timedOut = FALSE;
     MEMSET(&timeout, 0x00, SIZEOF(struct timeval));
-
-    PDtlsSession pDtlsSession = (PDtlsSession) args;
     CHK(pDtlsSession != NULL && pDtlsSession != NULL, STATUS_NULL_ARG);
 
     acquireDtlsSession(pDtlsSession);
@@ -443,7 +466,7 @@ PVOID dtlsSessionHandshakeThread(PVOID args)
     locked = TRUE;
 
     CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->isCleanUp), STATUS_DTLS_SESSION_ALREADY_SHUTDOWN);
-    CHK_STATUS(beginHandshakeProcess(pDtlsSession, &sslRet));
+    CHK_STATUS(beginHandshakeProcess(pDtlsSession, isServer, &sslRet));
     while (!(ATOMIC_LOAD_BOOL(&pDtlsSession->sslInitFinished)) && !dtlsHandshakeErrored && !(ATOMIC_LOAD_BOOL(&pDtlsSession->isCleanUp))) {
         dtlsTimeoutRet = DTLSv1_get_timeout(pDtlsSession->pSsl, &timeout);
         if (dtlsTimeoutRet > 0) {
@@ -467,7 +490,6 @@ PVOID dtlsSessionHandshakeThread(PVOID args)
                 break;
             case DTLS_STATE_HANDSHAKE_IN_PROGRESS:
                 if (SSL_is_init_finished(pDtlsSession->pSsl)) {
-                    DLOGI("Handshake finished: 0x%08x", pDtlsSession);
                     pDtlsSession->handshakeState = DTLS_STATE_HANDSHAKE_COMPLETED;
                     ATOMIC_STORE_BOOL(&pDtlsSession->sslInitFinished, TRUE);
                     CHK_STATUS(dtlsSessionChangeState(pDtlsSession, RTC_DTLS_TRANSPORT_STATE_CONNECTED));
@@ -485,9 +507,8 @@ PVOID dtlsSessionHandshakeThread(PVOID args)
                         // We start calculating start of handshake DTLS handshake time taken in server mode only after clientHello
                         // is received, until then, we are only waiting, so we should not count that time into handshake latency
                         // calculation
-                        if (pDtlsSession->isServer && firstMsg) {
+                        if (isServer && firstMsg) {
                             pDtlsSession->dtlsSessionStartTime = GETTIME();
-                            firstMsg = FALSE;
                         }
                         CHK_STATUS(dtlsCheckOutgoingDataBuffer(pDtlsSession));
                     }
@@ -514,43 +535,6 @@ CleanUp:
 
     CHK_LOG_ERR(retStatus);
 
-    if (locked) {
-        MUTEX_UNLOCK(pDtlsSession->sslLock);
-    }
-    releaseDtlsSession(pDtlsSession);
-
-    LEAVES();
-    return NULL;
-}
-
-STATUS dtlsSessionStart(PDtlsSession pDtlsSession, BOOL isServer)
-{
-    ENTERS();
-    STATUS retStatus = STATUS_SUCCESS;
-    BOOL locked = FALSE;
-    INT32 sslRet;
-
-    CHK(pDtlsSession != NULL && pDtlsSession != NULL, STATUS_NULL_ARG);
-
-    acquireDtlsSession(pDtlsSession);
-
-    MUTEX_LOCK(pDtlsSession->sslLock);
-    locked = TRUE;
-
-    pDtlsSession->isServer = isServer;
-    CHK_STATUS(beginHandshakeProcess(pDtlsSession, &sslRet));
-    pDtlsSession->dtlsSessionStartTime = GETTIME();
-
-#ifdef ENABLE_KVS_THREADPOOL
-    CHK_STATUS(threadpoolContextPush(dtlsSessionHandshakeThread, (PVOID) pDtlsSession));
-#else
-    CHK_STATUS(timerQueueAddTimer(pDtlsSession->timerQueueHandle, DTLS_SESSION_TIMER_START_DELAY, DTLS_TRANSMISSION_INTERVAL,
-                                  dtlsTransmissionTimerCallback, (UINT64) pDtlsSession, &pDtlsSession->timerId));
-#endif
-
-CleanUp:
-
-    CHK_LOG_ERR(retStatus);
     if (locked) {
         MUTEX_UNLOCK(pDtlsSession->sslLock);
     }
@@ -621,6 +605,7 @@ STATUS dtlsSessionProcessPacket(PDtlsSession pDtlsSession, PBYTE pData, PINT32 p
     BOOL locked = FALSE, isClosed = FALSE;
     INT32 sslRet = 0, sslErr;
     INT32 dataLen = 0;
+
     CHK(pDtlsSession != NULL && pDtlsSession != NULL && pDataLen != NULL, STATUS_NULL_ARG);
     acquireDtlsSession(pDtlsSession);
     CHK(ATOMIC_LOAD_BOOL(&pDtlsSession->isStarted), STATUS_SSL_PACKET_BEFORE_DTLS_READY);
