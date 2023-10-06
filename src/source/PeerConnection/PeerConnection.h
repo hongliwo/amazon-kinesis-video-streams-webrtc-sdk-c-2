@@ -144,7 +144,6 @@ typedef struct {
 
     UINT64 iceConnectingStartTime;
     KvsPeerConnectionDiagnostics peerConnectionDiagnostics;
-    volatile ATOMIC_BOOL isShuttingDown;
 } KvsPeerConnection, *PKvsPeerConnection;
 
 typedef struct {

@@ -630,23 +630,15 @@ CleanUp:
     CHK_LOG_ERR(retStatus);
 }
 
-STATUS onDtlsOutboundPacket(UINT64 customData, PBYTE pBuffer, UINT32 bufferLen)
+VOID onDtlsOutboundPacket(UINT64 customData, PBYTE pBuffer, UINT32 bufferLen)
 {
     PKvsPeerConnection pKvsPeerConnection = NULL;
-    STATUS retStatus = STATUS_SUCCESS;
-    CHK(customData != 0, STATUS_NULL_ARG);
+    if (customData == 0) {
+        return;
+    }
 
     pKvsPeerConnection = (PKvsPeerConnection) customData;
-    // Ensure that the ICE agent is not being freed
-
-    if (ATOMIC_LOAD_BOOL(&pKvsPeerConnection->isShuttingDown)) {
-        DLOGI("Shutting down Peer connection, nothing to do");
-        retStatus = STATUS_INVALID_ARG;
-    } else {
-        iceAgentSendPacket(pKvsPeerConnection->pIceAgent, pBuffer, bufferLen);
-    }
-CleanUp:
-    return retStatus;
+    iceAgentSendPacket(pKvsPeerConnection->pIceAgent, pBuffer, bufferLen);
 }
 
 VOID onDtlsStateChange(UINT64 customData, RTC_DTLS_TRANSPORT_STATE newDtlsState)
@@ -895,7 +887,6 @@ STATUS createPeerConnection(PRtcConfiguration pConfiguration, PRtcPeerConnection
     CHK_STATUS(timerQueueCreate(&pKvsPeerConnection->timerQueueHandle));
 
     pKvsPeerConnection->peerConnection.version = PEER_CONNECTION_CURRENT_VERSION;
-    ATOMIC_STORE_BOOL(&pKvsPeerConnection->isShuttingDown, FALSE);
     CHK_STATUS(generateJSONSafeString(pKvsPeerConnection->localIceUfrag, LOCAL_ICE_UFRAG_LEN));
     CHK_STATUS(generateJSONSafeString(pKvsPeerConnection->localIcePwd, LOCAL_ICE_PWD_LEN));
     CHK_STATUS(generateJSONSafeString(pKvsPeerConnection->localCNAME, LOCAL_CNAME_LEN));
@@ -982,7 +973,6 @@ STATUS freePeerConnection(PRtcPeerConnection* ppPeerConnection)
 
     startTime = GETTIME();
     DLOGI("Received free call");
-    ATOMIC_STORE_BOOL(&pKvsPeerConnection->isShuttingDown, TRUE);
     /* Shutdown IceAgent first so there is no more incoming packets which can cause
      * SCTP to be allocated again after SCTP is freed. */
     CHK_LOG_ERR(iceAgentShutdown(pKvsPeerConnection->pIceAgent));
@@ -1573,7 +1563,6 @@ STATUS closePeerConnection(PRtcPeerConnection pPeerConnection)
     UINT64 startTime = GETTIME();
     CHK(pKvsPeerConnection != NULL, STATUS_NULL_ARG);
     DLOGI("Received close call");
-    ATOMIC_STORE_BOOL(&pKvsPeerConnection->isShuttingDown, TRUE);
     CHK_LOG_ERR(dtlsSessionShutdown(pKvsPeerConnection->pDtlsSession));
     CHK_LOG_ERR(iceAgentShutdown(pKvsPeerConnection->pIceAgent));
     PROFILE_WITH_START_TIME_OBJ(startTime, pKvsPeerConnection->peerConnectionDiagnostics.closePeerConnectionTime, "Close peer connection");

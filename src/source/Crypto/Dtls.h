@@ -50,7 +50,7 @@ typedef enum {
 } RTC_DTLS_TRANSPORT_STATE;
 
 /* Callback that is fired when Dtls Server wishes to send packet */
-typedef STATUS (*DtlsSessionOutboundPacketFunc)(UINT64, PBYTE, UINT32);
+typedef VOID (*DtlsSessionOutboundPacketFunc)(UINT64, PBYTE, UINT32);
 
 /*  Callback that is fired when Dtls state has changed */
 typedef VOID (*DtlsSessionOnStateChange)(UINT64, RTC_DTLS_TRANSPORT_STATE);

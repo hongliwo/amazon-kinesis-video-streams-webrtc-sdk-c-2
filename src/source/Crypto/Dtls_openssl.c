@@ -751,8 +751,8 @@ STATUS dtlsCheckOutgoingDataBuffer(PDtlsSession pDtlsSession)
     dataLenWritten = BIO_read(pWriteBIO, pDtlsSession->outgoingDataBuffer, ARRAY_SIZE(pDtlsSession->outgoingDataBuffer));
     if (dataLenWritten > 0) {
         pDtlsSession->outgoingDataLen = (UINT32) dataLenWritten;
-        retStatus = pDtlsSession->dtlsSessionCallbacks.outboundPacketFn(pDtlsSession->dtlsSessionCallbacks.outBoundPacketFnCustomData,
-                                                                        pDtlsSession->outgoingDataBuffer, pDtlsSession->outgoingDataLen);
+        pDtlsSession->dtlsSessionCallbacks.outboundPacketFn(pDtlsSession->dtlsSessionCallbacks.outBoundPacketFnCustomData,
+                                                            pDtlsSession->outgoingDataBuffer, pDtlsSession->outgoingDataLen);
     } else {
         LOG_OPENSSL_ERROR("BIO_read");
     }
