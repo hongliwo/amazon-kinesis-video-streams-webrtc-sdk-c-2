@@ -70,6 +70,7 @@ class DtlsFunctionalityTest : public WebRtcClientTestBase {
         CHK_STATUS(dtlsSessionOnOutBoundData(pClient, (UINT64) &serverCtx, outboundPacketFn));
 
         // In case of mbedtls it will be a black return of SUCCESS
+#ifdef KVS_USE_OPENSSL
         if(useThread) {
             dtlsClientThread = std::thread(dtlsSessionHandshakeInThread, pClient, TRUE);
             dtlsServerThread = std::thread(dtlsSessionHandshakeInThread, pServer, FALSE);
@@ -77,7 +78,10 @@ class DtlsFunctionalityTest : public WebRtcClientTestBase {
             CHK_STATUS(dtlsSessionStart(pClient, TRUE));
             CHK_STATUS(dtlsSessionStart(pServer, FALSE));
         }
-
+#else
+        CHK_STATUS(dtlsSessionStart(pClient, TRUE));
+        CHK_STATUS(dtlsSessionStart(pServer, FALSE));
+#endif
 
         for (UINT64 duration = 0; duration < MAX_TEST_AWAIT_DURATION && ATOMIC_LOAD(&connectedCount) != 2; duration += sleepDelay) {
             CHK_STATUS(consumeMessages(&serverCtx, pServer));
@@ -90,10 +94,12 @@ class DtlsFunctionalityTest : public WebRtcClientTestBase {
         *ppClient = pClient;
         *ppServer = pServer;
 
+#ifdef KVS_USE_OPENSSL
         if(useThread) {
             dtlsClientThread.join();
             dtlsServerThread.join();
         }
+#endif
 
     CleanUp:
 
