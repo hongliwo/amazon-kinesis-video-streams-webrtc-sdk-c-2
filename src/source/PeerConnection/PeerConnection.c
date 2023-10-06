@@ -440,8 +440,7 @@ CleanUp:
 PVOID dtlsSessionStartThread(PVOID args)
 {
     PKvsPeerConnection pKvsPeerConnection = (PKvsPeerConnection) args;
-    DLOGI("Executing DTLS handshake in the threadpool");
-    dtlsSessionStartInThread(pKvsPeerConnection->pDtlsSession, pKvsPeerConnection->dtlsIsServer);
+    dtlsSessionHandshakeInThread(pKvsPeerConnection->pDtlsSession, pKvsPeerConnection->dtlsIsServer);
     return NULL;
 }
 

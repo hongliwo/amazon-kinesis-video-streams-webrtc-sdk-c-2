@@ -178,7 +178,7 @@ STATUS dtlsSessionShutdown(PDtlsSession);
 
 STATUS dtlsSessionOnOutBoundData(PDtlsSession, UINT64, DtlsSessionOutboundPacketFunc);
 STATUS dtlsSessionOnStateChange(PDtlsSession, UINT64, DtlsSessionOnStateChange);
-STATUS dtlsSessionStartInThread(PDtlsSession, BOOL);
+STATUS dtlsSessionHandshakeInThread(PDtlsSession, BOOL);
 
 /******** Internal Functions **********/
 STATUS dtlsValidateRtcCertificates(PRtcCertificate, PUINT32);

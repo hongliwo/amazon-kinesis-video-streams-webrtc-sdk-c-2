@@ -445,7 +445,7 @@ CleanUp:
     return retStatus;
 }
 
-STATUS dtlsSessionStartInThread(PDtlsSession pDtlsSession, BOOL isServer)
+STATUS dtlsSessionHandshakeInThread(PDtlsSession pDtlsSession, BOOL isServer)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
@@ -509,6 +509,7 @@ STATUS dtlsSessionStartInThread(PDtlsSession pDtlsSession, BOOL isServer)
                         // calculation
                         if (isServer && firstMsg) {
                             pDtlsSession->dtlsSessionStartTime = GETTIME();
+                            firstMsg = FALSE;
                         }
                         CHK_STATUS(dtlsCheckOutgoingDataBuffer(pDtlsSession));
                     }

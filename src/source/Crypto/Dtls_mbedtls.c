@@ -248,7 +248,7 @@ INT32 dtlsSessionKeyDerivationCallback(PVOID customData, const unsigned char* pM
     return 0;
 }
 
-STATUS dtlsSessionStartInThread(PDtlsSession pDtlsSession, BOOL isServer)
+STATUS dtlsSessionHandshakeInThread(PDtlsSession pDtlsSession, BOOL isServer)
 {
     DLOGI("Threadpool based DTLS handshake not supported for mbedtls");
     return STATUS_SUCCESS;
