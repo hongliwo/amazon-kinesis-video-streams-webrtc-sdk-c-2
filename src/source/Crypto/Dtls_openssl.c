@@ -677,6 +677,8 @@ STATUS dtlsSessionPutApplicationData(PDtlsSession pDtlsSession, PBYTE pData, INT
     MUTEX_LOCK(pDtlsSession->sslLock);
     locked = TRUE;
 
+    // Need the shutdown check, otherwise SSL_write could fail if app abruptly terminated
+    CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->shutdown), retStatus);
     CHK(!ATOMIC_LOAD_BOOL(&pDtlsSession->isCleanUp), retStatus);
 
     if ((amountWritten = SSL_write(pDtlsSession->pSsl, pData, dataLen)) != dataLen &&
