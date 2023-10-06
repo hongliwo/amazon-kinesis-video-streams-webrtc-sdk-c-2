@@ -437,14 +437,6 @@ CleanUp:
     return retStatus;
 }
 
-PVOID dtlsSessionStartThread(PVOID args)
-{
-    PKvsPeerConnection pKvsPeerConnection = (PKvsPeerConnection) args;
-    DLOGI("Executing DTLS handshake in the threadpool");
-    dtlsSessionStartInThread(pKvsPeerConnection->pDtlsSession, pKvsPeerConnection->dtlsIsServer);
-    return NULL;
-}
-
 VOID onIceConnectionStateChange(UINT64 customData, UINT64 connectionState)
 {
     STATUS retStatus = STATUS_SUCCESS;
@@ -502,15 +494,7 @@ VOID onIceConnectionStateChange(UINT64 customData, UINT64 connectionState)
             // Reference: https://w3c.github.io/webrtc-pc/#rtcpeerconnectionstate-enum
             DLOGI("Starting DTLS session");
             // Move to the threadpool
-#ifdef ENABLE_KVS_THREADPOOL
-#ifdef KVS_USE_OPENSSL
-            CHK_STATUS(threadpoolContextPush(dtlsSessionStartThread, (PVOID) pKvsPeerConnection));
-#else
             CHK_STATUS(dtlsSessionStart(pKvsPeerConnection->pDtlsSession, pKvsPeerConnection->dtlsIsServer));
-#endif
-#else
-            CHK_STATUS(dtlsSessionStart(pKvsPeerConnection->pDtlsSession, pKvsPeerConnection->dtlsIsServer));
-#endif
         }
     }
 

@@ -115,6 +115,7 @@ struct __DtlsSession {
     RTC_DTLS_TRANSPORT_STATE state;
     DTLS_HANDSHAKE_STATE handshakeState;
     MUTEX sslLock;
+    BOOL isServer;
     volatile SIZE_T refCount; // reference count
 
 #ifdef KVS_USE_OPENSSL
@@ -178,7 +179,6 @@ STATUS dtlsSessionShutdown(PDtlsSession);
 
 STATUS dtlsSessionOnOutBoundData(PDtlsSession, UINT64, DtlsSessionOutboundPacketFunc);
 STATUS dtlsSessionOnStateChange(PDtlsSession, UINT64, DtlsSessionOnStateChange);
-STATUS dtlsSessionStartInThread(PDtlsSession, BOOL);
 
 /******** Internal Functions **********/
 STATUS dtlsValidateRtcCertificates(PRtcCertificate, PUINT32);
