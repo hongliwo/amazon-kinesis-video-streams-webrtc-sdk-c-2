@@ -235,9 +235,19 @@ STATUS writeFrame(PRtcRtpTransceiver pRtcRtpTransceiver, PFrame pFrame)
             rtpTimestamp = CONVERT_TIMESTAMP_TO_RTP(VIDEO_CLOCKRATE, pFrame->presentationTs);
             break;
 
+        case RTC_CODEC_H265_PROFILE_42E01F_LEVEL_ASYMMETRY_ALLOWED_PACKETIZATION_MODE:
+            rtpPayloadFunc = createPayloadForH265;
+            rtpTimestamp = CONVERT_TIMESTAMP_TO_RTP(VIDEO_CLOCKRATE, pFrame->presentationTs);
+            break;
+
         case RTC_CODEC_OPUS:
             rtpPayloadFunc = createPayloadForOpus;
             rtpTimestamp = CONVERT_TIMESTAMP_TO_RTP(OPUS_CLOCKRATE, pFrame->presentationTs);
+            break;
+
+        case RTC_CODEC_AAC:
+            rtpPayloadFunc = createPayloadForAac;
+            rtpTimestamp = CONVERT_TIMESTAMP_TO_RTP(AAC_CLOCKRATE, pFrame->presentationTs);
             break;
 
         case RTC_CODEC_MULAW:
@@ -252,6 +262,8 @@ STATUS writeFrame(PRtcRtpTransceiver pRtcRtpTransceiver, PFrame pFrame)
             break;
 
         default:
+			printf("\n\n\n\n pKvsRtpTransceiver->sender.track.codec:%d, %s:%d \n\n\n\n", 
+					pKvsRtpTransceiver->sender.track.codec, __func__, __LINE__);
             CHK(FALSE, STATUS_NOT_IMPLEMENTED);
     }
 

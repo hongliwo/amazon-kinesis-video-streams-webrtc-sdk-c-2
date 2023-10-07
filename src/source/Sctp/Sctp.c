@@ -106,6 +106,7 @@ STATUS createSctpSession(PSctpSessionCallbacks pSctpSessionCallbacks, PSctpSessi
 
     CHK(usrsctp_bind(pSctpSession->socket, (struct sockaddr*) &localConn, SIZEOF(localConn)) == 0, STATUS_SCTP_SESSION_SETUP_FAILED);
 
+	DLOGD("### connect socket:%d ", pSctpSession->socket);
     connectStatus = usrsctp_connect(pSctpSession->socket, (struct sockaddr*) &remoteConn, SIZEOF(remoteConn));
     CHK(connectStatus >= 0 || errno == EINPROGRESS, STATUS_SCTP_SESSION_SETUP_FAILED);
 
@@ -121,6 +122,8 @@ CleanUp:
     }
 
     *ppSctpSession = pSctpSession;
+
+	DLOGD("### createSctpSession  retStatus:%d", retStatus);
 
     LEAVES();
     return retStatus;

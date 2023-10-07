@@ -284,6 +284,11 @@ BOOL socketConnectionIsConnected(PSocketConnection pSocketConnection)
 
     CHECK(pSocketConnection != NULL);
 
+	DLOGD("protocol:%d, pSocketConnection->hostIpAddr.address:%s:%d, pSocketConnection->peerIpAddr.address:%s:%d, family:%d", 
+			pSocketConnection->protocol,
+			inet_ntoa(*(struct in_addr  *)pSocketConnection->hostIpAddr.address), pSocketConnection->hostIpAddr.port,
+			inet_ntoa(*(struct in_addr  *)pSocketConnection->peerIpAddr.address), pSocketConnection->peerIpAddr.port, pSocketConnection->peerIpAddr.family);
+
     if (pSocketConnection->protocol == KVS_SOCKET_PROTOCOL_UDP) {
         return TRUE;
     }
@@ -295,6 +300,7 @@ BOOL socketConnectionIsConnected(PSocketConnection pSocketConnection)
         ipv4PeerAddr.sin_port = pSocketConnection->peerIpAddr.port;
         MEMCPY(&ipv4PeerAddr.sin_addr, pSocketConnection->peerIpAddr.address, IPV4_ADDRESS_LENGTH);
         peerSockAddr = (struct sockaddr*) &ipv4PeerAddr;
+		DLOGD("ip:%s:%d", inet_ntoa(ipv4PeerAddr.sin_addr), ipv4PeerAddr.sin_port);
     } else {
         addrLen = SIZEOF(struct sockaddr_in6);
         MEMSET(&ipv6PeerAddr, 0x00, SIZEOF(ipv6PeerAddr));

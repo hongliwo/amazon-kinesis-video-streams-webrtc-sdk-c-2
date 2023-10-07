@@ -923,7 +923,9 @@ STATUS turnConnectionStepState(PTurnConnection pTurnConnection)
             } else {
                 CHK(currentTime < pTurnConnection->stateTimeoutTime, STATUS_TURN_CONNECTION_STATE_TRANSITION_TIMEOUT);
             }
+            break;
 
+        // fallthrough here, missing break intended
         case TURN_STATE_GET_CREDENTIALS:
 
             if (pTurnConnection->credentialObtained) {
@@ -940,6 +942,8 @@ STATUS turnConnectionStepState(PTurnConnection pTurnConnection)
 
                 pTurnConnection->state = TURN_STATE_ALLOCATION;
                 pTurnConnection->stateTimeoutTime = currentTime + DEFAULT_TURN_ALLOCATION_TIMEOUT;
+                pTurnConnection->stateTryCountMax = DEFAULT_TURN_ALLOCATION_MAX_TRY_COUNT;
+                pTurnConnection->stateTryCount = 0;
             } else {
                 CHK(currentTime < pTurnConnection->stateTimeoutTime, STATUS_TURN_CONNECTION_STATE_TRANSITION_TIMEOUT);
             }
@@ -991,6 +995,9 @@ STATUS turnConnectionStepState(PTurnConnection pTurnConnection)
                 pTurnConnection->stateTimeoutTime = currentTime + DEFAULT_TURN_CREATE_PERMISSION_TIMEOUT;
 
             } else {
+				// TODO 
+                //pTurnConnection->stateTryCount++;
+                //CHK(pTurnConnection->stateTryCount < pTurnConnection->stateTryCountMax, STATUS_TURN_CONNECTION_ALLOCAITON_FAILED);
                 CHK(currentTime < pTurnConnection->stateTimeoutTime, STATUS_TURN_CONNECTION_STATE_TRANSITION_TIMEOUT);
             }
             break;
@@ -1012,7 +1019,7 @@ STATUS turnConnectionStepState(PTurnConnection pTurnConnection)
                 CHK(FALSE, retStatus);
             }
 
-            if (currentTime >= pTurnConnection->stateTimeoutTime) {
+            if (currentTime >= pTurnConnection->stateTimeoutTime || channelWithPermissionCount == pTurnConnection->turnPeerCount) {
                 CHK(channelWithPermissionCount > 0, STATUS_TURN_CONNECTION_FAILED_TO_CREATE_PERMISSION);
 
                 // go to next state if we have at least one ready peer
@@ -1109,6 +1116,12 @@ CleanUp:
     if (STATUS_FAILED(retStatus) && pTurnConnection->state != TURN_STATE_FAILED) {
         pTurnConnection->errorStatus = retStatus;
         pTurnConnection->state = TURN_STATE_FAILED;
+
+        if (pTurnConnection->turnConnectionCallbacks.turnStateFailedFn != NULL) {
+            pTurnConnection->turnConnectionCallbacks.turnStateFailedFn(pTurnConnection->pControlChannel,
+                                                                       pTurnConnection->turnConnectionCallbacks.customData);
+        }
+
         /* fix up state to trigger transition into TURN_STATE_FAILED  */
         retStatus = STATUS_SUCCESS;
     }

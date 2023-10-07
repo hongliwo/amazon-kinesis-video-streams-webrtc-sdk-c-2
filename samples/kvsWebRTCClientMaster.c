@@ -2,7 +2,12 @@
 
 extern PSampleConfiguration gSampleConfiguration;
 
-// #define VERBOSE
+#define VERBOSE
+#define VIDEO_H265 1
+#define AUDIO_AAC  1
+
+int g_has_send_video_flag = 0;
+int g_has_send_audio_flag = 0;
 
 INT32 main(INT32 argc, CHAR* argv[])
 {
@@ -55,14 +60,23 @@ INT32 main(INT32 argc, CHAR* argv[])
 
     // Check if the samples are present
 
-    retStatus = readFrameFromDisk(NULL, &frameSize, "./h264SampleFrames/frame-0001.h264");
+    if (VIDEO_H265) {
+    	retStatus = readFrameFromDisk(NULL, &frameSize, "./h265SampleFrames/frame-0001.h265");
+	} else {
+	    retStatus = readFrameFromDisk(NULL, &frameSize, "./h264SampleFrames/frame-0001.h264");
+	}
+    
     if (retStatus != STATUS_SUCCESS) {
         printf("[KVS Master] readFrameFromDisk(): operation returned status code: 0x%08x \n", retStatus);
         goto CleanUp;
     }
     printf("[KVS Master] Checked sample video frame availability....available\n");
 
-    retStatus = readFrameFromDisk(NULL, &frameSize, "./opusSampleFrames/sample-001.opus");
+	if (AUDIO_AAC) {
+		retStatus = readFrameFromDisk(NULL, &frameSize, "./aacSampleFrames/sample-001.aac");
+	} else {
+		retStatus = readFrameFromDisk(NULL, &frameSize, "./opusSampleFrames2/sample-001.opus");
+	}
     if (retStatus != STATUS_SUCCESS) {
         printf("[KVS Master] readFrameFromDisk(): operation returned status code: 0x%08x \n", retStatus);
         goto CleanUp;
@@ -211,6 +225,7 @@ PVOID sendVideoPackets(PVOID args)
     PSampleConfiguration pSampleConfiguration = (PSampleConfiguration) args;
     RtcEncoderStats encoderStats;
     Frame frame;
+    frame.trackId = DEFAULT_VIDEO_TRACK_ID;
     UINT32 fileIndex = 0, frameSize;
     CHAR filePath[MAX_PATH_LEN + 1];
     STATUS status;
@@ -228,8 +243,13 @@ PVOID sendVideoPackets(PVOID args)
     lastFrameTime = startTime;
 
     while (!ATOMIC_LOAD_BOOL(&pSampleConfiguration->appTerminateFlag)) {
-        fileIndex = fileIndex % NUMBER_OF_H264_FRAME_FILES + 1;
-        snprintf(filePath, MAX_PATH_LEN, "./h264SampleFrames/frame-%04d.h264", fileIndex);
+        if (VIDEO_H265) {
+			fileIndex = fileIndex % NUMBER_OF_H265_FRAME_FILES + 1;
+			snprintf(filePath, MAX_PATH_LEN, "./h265SampleFrames/frame-%04d.h265", fileIndex);
+		} else {
+        	fileIndex = fileIndex % NUMBER_OF_H264_FRAME_FILES + 1;
+			snprintf(filePath, MAX_PATH_LEN, "./h264SampleFrames/frame-%04d.h264", fileIndex);
+		}
 
         retStatus = readFrameFromDisk(NULL, &frameSize, filePath);
         if (retStatus != STATUS_SUCCESS) {
@@ -259,8 +279,8 @@ PVOID sendVideoPackets(PVOID args)
         }
 
         // based on bitrate of samples/h264SampleFrames/frame-*
-        encoderStats.width = 640;
-        encoderStats.height = 480;
+        encoderStats.width = 1280;	//640;
+        encoderStats.height = 720;	//480;
         encoderStats.targetBitrate = 262000;
         frame.presentationTs += SAMPLE_VIDEO_FRAME_DURATION;
 
@@ -272,9 +292,14 @@ PVOID sendVideoPackets(PVOID args)
             if (status != STATUS_SRTP_NOT_READY_YET) {
                 if (status != STATUS_SUCCESS) {
 #ifdef VERBOSE
-                    printf("writeFrame() failed with 0x%08x\n", status);
+                    printf("writeFrame() video failed with 0x%08x\n", status);
 #endif
-                }
+                } else {
+					if (g_has_send_video_flag == 0) {
+						DLOGV("writeFrame() video success size %d", frame.size);
+						g_has_send_video_flag = 1;
+					}
+				}
             }
         }
         MUTEX_UNLOCK(pSampleConfiguration->streamingSessionListReadLock);
@@ -300,6 +325,7 @@ PVOID sendAudioPackets(PVOID args)
     STATUS retStatus = STATUS_SUCCESS;
     PSampleConfiguration pSampleConfiguration = (PSampleConfiguration) args;
     Frame frame;
+    frame.trackId = DEFAULT_AUDIO_TRACK_ID;
     UINT32 fileIndex = 0, frameSize;
     CHAR filePath[MAX_PATH_LEN + 1];
     UINT32 i;
@@ -313,9 +339,13 @@ PVOID sendAudioPackets(PVOID args)
     frame.presentationTs = 0;
 
     while (!ATOMIC_LOAD_BOOL(&pSampleConfiguration->appTerminateFlag)) {
-        fileIndex = fileIndex % NUMBER_OF_OPUS_FRAME_FILES + 1;
-        snprintf(filePath, MAX_PATH_LEN, "./opusSampleFrames/sample-%03d.opus", fileIndex);
-
+		if (AUDIO_AAC) {
+			fileIndex = fileIndex % NUMBER_OF_AAC_FRAME_FILES + 1;
+			snprintf(filePath, MAX_PATH_LEN, "./aacSampleFrames/sample-%03d.aac", fileIndex);
+		} else {
+			fileIndex = fileIndex % NUMBER_OF_OPUS_FRAME_FILES + 1;
+			snprintf(filePath, MAX_PATH_LEN, "./opusSampleFrames2/sample-%03d.opus", fileIndex);
+		}
         retStatus = readFrameFromDisk(NULL, &frameSize, filePath);
         if (retStatus != STATUS_SUCCESS) {
             printf("[KVS Master] readFrameFromDisk(): operation returned status code: 0x%08x \n", retStatus);
@@ -341,7 +371,11 @@ PVOID sendAudioPackets(PVOID args)
             goto CleanUp;
         }
 
-        frame.presentationTs += SAMPLE_AUDIO_FRAME_DURATION;
+		if (AUDIO_AAC) {
+			frame.presentationTs += SAMPLE_AUDIO_FRAME_DURATION_AAC;
+		} else {
+			frame.presentationTs += SAMPLE_AUDIO_FRAME_DURATION;
+		}
 
         MUTEX_LOCK(pSampleConfiguration->streamingSessionListReadLock);
         for (i = 0; i < pSampleConfiguration->streamingSessionCount; ++i) {
@@ -349,13 +383,22 @@ PVOID sendAudioPackets(PVOID args)
             if (status != STATUS_SRTP_NOT_READY_YET) {
                 if (status != STATUS_SUCCESS) {
 #ifdef VERBOSE
-                    printf("writeFrame() failed with 0x%08x\n", status);
+                    printf("writeFrame() audio failed with 0x%08x\n", status);
 #endif
+                } else {
+					if (g_has_send_audio_flag==0) {
+						DLOGV("writeFrame() audio success, size:%d\n", frame.size);
+						g_has_send_audio_flag = 1;
+					}
                 }
             }
         }
         MUTEX_UNLOCK(pSampleConfiguration->streamingSessionListReadLock);
-        THREAD_SLEEP(SAMPLE_AUDIO_FRAME_DURATION);
+		if (AUDIO_AAC) {
+			THREAD_SLEEP(SAMPLE_AUDIO_FRAME_DURATION_AAC);
+		} else {
+			THREAD_SLEEP(SAMPLE_AUDIO_FRAME_DURATION);
+		}
     }
 
 CleanUp:

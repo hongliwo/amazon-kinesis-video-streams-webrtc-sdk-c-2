@@ -148,7 +148,7 @@ STATUS signalingClientSendMessageSync(SIGNALING_CLIENT_HANDLE signalingClientHan
     STATUS retStatus = STATUS_SUCCESS;
     PSignalingClient pSignalingClient = FROM_SIGNALING_CLIENT_HANDLE(signalingClientHandle);
 
-    DLOGV("Signaling Client Sending Message Sync");
+    DLOGV("Signaling Client Sending Message Sync, messageType:%d, payload:%s", pSignalingMessage->messageType, pSignalingMessage->payload);
 
     CHK_STATUS(signalingSendMessageSync(pSignalingClient, pSignalingMessage));
 
@@ -314,12 +314,14 @@ STATUS signalingClientGetCurrentState(SIGNALING_CLIENT_HANDLE signalingClientHan
     PSignalingClient pSignalingClient = FROM_SIGNALING_CLIENT_HANDLE(signalingClientHandle);
     PStateMachineState pStateMachineState;
 
-    DLOGV("Signaling Client Get Current State");
+    // DLOGV("Signaling Client Get Current State");
 
     CHK(pSignalingClient != NULL && pState != NULL, STATUS_NULL_ARG);
 
     CHK_STATUS(getStateMachineCurrentState(pSignalingClient->pStateMachine, &pStateMachineState));
     state = getSignalingStateFromStateMachineState(pStateMachineState->state);
+
+    DLOGV("Signaling Client Get Current State: %d", state);
 
 CleanUp:
 

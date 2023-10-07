@@ -147,6 +147,21 @@ CleanUp:
     return retStatus;
 }
 
+// TODO add support for windows socketpair
+#ifndef _WIN32
+STATUS createSocketPair(INT32 (*pSocketPair)[2])
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    CHK(pSocketPair != NULL, STATUS_NULL_ARG);
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, *pSocketPair) == -1) {
+        DLOGE("socketpair() failed to create a pair of sockets with errno %s", getErrorString(getErrorCode()));
+        CHK(FALSE, STATUS_CREATE_SOCKET_PAIR_FAILED);
+    }
+CleanUp:
+    return retStatus;
+}
+#endif
+
 STATUS createSocket(KVS_IP_FAMILY_TYPE familyType, KVS_SOCKET_PROTOCOL protocol, UINT32 sendBufSize, PINT32 pOutSockFd)
 {
     STATUS retStatus = STATUS_SUCCESS;
@@ -294,6 +309,7 @@ STATUS socketConnect(PKvsIpAddress pPeerAddress, INT32 sockfd)
         addrLen = SIZEOF(struct sockaddr_in6);
     }
 
+	DLOGD("### connect socket:%d, ip:%s:%d", sockfd, inet_ntoa(((struct sockaddr_in *)peerSockAddr)->sin_addr), ((struct sockaddr_in *)peerSockAddr)->sin_port);
     retVal = connect(sockfd, peerSockAddr, addrLen);
     CHK_ERR(retVal >= 0 || getErrorCode() == KVS_SOCKET_IN_PROGRESS, STATUS_SOCKET_CONNECT_FAILED, "connect() failed with errno %s",
             getErrorString(getErrorCode()));
@@ -302,40 +318,273 @@ CleanUp:
     return retStatus;
 }
 
+STATUS socketWrite(INT32 sockfd, const void* pBuffer, SIZE_T length) 
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    ssize_t ret = (ssize_t) length;
+#ifndef _WIN32
+    if (ret != write(sockfd, pBuffer, length)) {
+        DLOGW("write() failed to write over socket with errno %s", getErrorString(getErrorCode()));
+        CHK(FALSE, STATUS_SOCKET_WRITE_FAILED);
+    }
+#endif
+CleanUp:
+    return retStatus;
+}
+
+BOOL isIpAddr(PCHAR hostname, UINT16 length)
+{
+    BOOL status = TRUE;
+    UINT32 ip_1, ip_2, ip_3, ip_4, ip_5, ip_6, ip_7, ip_8;
+    if (hostname == NULL || length > MAX_ICE_CONFIG_URI_LEN) {
+        DLOGW("Provided NULL hostname");
+        status = FALSE;
+    } else {
+        status = (SSCANF(hostname, IPV4_TEMPLATE, &ip_1, &ip_2, &ip_3, &ip_4) == 4 && ip_1 >= 0 && ip_1 <= 255 && ip_2 >= 0 && ip_2 <= 255 &&
+                  ip_3 >= 0 && ip_3 <= 255 && ip_4 >= 0 && ip_4 <= 255) ||
+            (SSCANF(hostname, IPV6_TEMPLATE, &ip_1, &ip_2, &ip_3, &ip_4, &ip_5, &ip_6, &ip_7, &ip_8) == 8);
+    }
+    return status;
+}
+
+STATUS getIpAddrFromDnsHostname(PCHAR hostname, PCHAR address, UINT16 lengthSrc, UINT16 maxLenDst)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    UINT8 i = 0, j = 0;
+    UINT16 hostNameLen = lengthSrc;
+    CHK(hostname != NULL && address != NULL, STATUS_NULL_ARG);
+    CHK(hostNameLen > 0 && hostNameLen < MAX_ICE_CONFIG_URI_LEN, STATUS_INVALID_ARG);
+
+    // TURN server URLs conform with the public IPv4 DNS hostname format defined here:
+    // https://docs.aws.amazon.com/vpc/latest/userguide/vpc-dns.html#vpc-dns-hostnames
+    // So, we first try to parse the IP from the hostname if it conforms to this format
+    // For example: 35-90-63-38.t-ae7dd61a.kinesisvideo.us-west-2.amazonaws.com
+    // Note: public IPv6 DNS hostnames are not available
+    while (hostNameLen > 0 && hostname[i] != '.') {
+        if (hostname[i] >= '0' && hostname[i] <= '9') {
+            if (j > maxLenDst) {
+                DLOGW("Generated address is past allowed size");
+                retStatus = STATUS_INVALID_ADDRESS_LENGTH;
+                break;
+            }
+            address[j] = hostname[i];
+        } else if (hostname[i] == '-') {
+            if (j > maxLenDst) {
+                DLOGW("Generated address is past allowed size");
+                retStatus = STATUS_INVALID_ADDRESS_LENGTH;
+                break;
+            }
+            address[j] = '.';
+        } else {
+            DLOGW("Received unexpected hostname format: %s", hostname);
+            break;
+        }
+        j++;
+        i++;
+        hostNameLen--;
+		}
+
+    address[j] = '\0';
+
+CleanUp:
+    return retStatus;
+}
+
+#if 1
+
+UINT32 MAX_DIFF_TIME_SEC_FOR_RESERVE_IP = 0;	// 3600;	// 2023-08-02 暂时不启用ip重用，可能会导致Forbidden IP
+
+STATUS reuseAddr(BYTE opt, PCHAR hostname, PCHAR address)
+{
+	static UINT64 timeReserve = 0;
+	static CHAR hostnameReserved[MAX_ICE_CONFIG_URI_LEN + 1] = {'\0'};
+    static CHAR addressResolved[KVS_IP_ADDRESS_STRING_BUFFER_LEN + 1] = {'\0'};
+	
+    UINT64 curTime = GETTIME();
+	UINT64 diffTime = curTime > timeReserve ? curTime - timeReserve : timeReserve - curTime;
+	UINT32 diffTimeSec = diffTime / 1000 / 1000 / 10;
+
+	if (!hostname || !addressResolved) {
+		return STATUS_NULL_ARG;
+	}
+
+	if (opt == 0) {	// read
+		DLOGD("reuseAddr, opt:%d, hostname:%s, timeReserve:%llu, curTime:%llu, diffTime:%llu, diffTimeSec:%d", 
+			opt, hostname, timeReserve, curTime, diffTime, diffTimeSec);
+
+		if (timeReserve !=0 && strlen(hostname) > 0 && (strcmp(hostname, hostnameReserved) == 0) 
+				&& strlen(addressResolved) > 0
+				&& diffTimeSec < MAX_DIFF_TIME_SEC_FOR_RESERVE_IP)  {
+			strcpy(address, addressResolved);
+		} else {
+			return STATUS_NOT_FOUND;
+		}
+	} else if (opt = 1) { // write
+		DLOGD("reuseAddr, opt:%d, hostname:%s, address:%s, timeReserve:%llu, curTime:%llu", 
+			opt, hostname, address, timeReserve, curTime);
+
+		if (strlen(hostname) > 0 && strlen(address) > 0) {
+			memset(hostnameReserved, 0x00, sizeof(hostnameReserved));
+			memset(addressResolved, 0x00, sizeof(addressResolved));
+			strcpy(hostnameReserved, hostname);
+			strcpy(addressResolved, address);
+			timeReserve = curTime;
+		} else {
+			return STATUS_NOT_FOUND;
+		}
+
+	} else {
+	}
+
+	return STATUS_SUCCESS;
+}
+
+
 STATUS getIpWithHostName(PCHAR hostname, PKvsIpAddress destIp)
 {
     STATUS retStatus = STATUS_SUCCESS;
     INT32 errCode;
+    UINT16 hostnameLen, addrLen;
     PCHAR errStr;
     struct addrinfo *res, *rp;
     BOOL resolved = FALSE;
     struct sockaddr_in* ipv4Addr;
     struct sockaddr_in6* ipv6Addr;
+    struct in_addr inaddr;
 
-    CHK(hostname != NULL, STATUS_NULL_ARG);
+	struct addrinfo hint = {
+		.ai_flags = (AI_V4MAPPED | AI_ADDRCONFIG),
+		.ai_family = AF_INET,
+		.ai_socktype = 0,
+		.ai_protocol = 0};
 
-    errCode = getaddrinfo(hostname, NULL, NULL, &res);
-    if (errCode != 0) {
-        errStr = errCode == EAI_SYSTEM ? strerror(errno) : (PCHAR) gai_strerror(errCode);
-        CHK_ERR(FALSE, STATUS_RESOLVE_HOSTNAME_FAILED, "getaddrinfo() with errno %s", errStr);
+
+    CHAR addr[KVS_IP_ADDRESS_STRING_BUFFER_LEN + 1] = {'\0'};
+    CHAR addressResolved[KVS_IP_ADDRESS_STRING_BUFFER_LEN + 1] = {'\0'};
+
+	CHK(hostname != NULL, STATUS_NULL_ARG);
+
+    hostnameLen = STRLEN(hostname);
+    addrLen = SIZEOF(addr);
+	
+    // Adding this check in case we directly get an IP address. With the current usage pattern,
+    // there is no way this function would receive an address directly, but having this check
+    // in place anyways
+    if (isIpAddr(hostname, hostnameLen)) {
+        MEMCPY(addr, hostname, hostnameLen);
+    } else {
+        retStatus = getIpAddrFromDnsHostname(hostname, addr, hostnameLen, addrLen);
+	}
+
+    // Verify the generated address has the format x.x.x.x
+    if (!isIpAddr(addr, hostnameLen) || retStatus != STATUS_SUCCESS) {
+		if (reuseAddr(0, hostname, addressResolved) == STATUS_SUCCESS) {
+			DLOGW("Parsing for address failed for %s, fallback to reuseAddr", hostname);
+			DLOGI("ICE Server address for %s with reuseAddr: %s", hostname, addressResolved);
+		} else {
+			DLOGW("Parsing for address failed for %s, fallback to getaddrinfo", hostname);
+			errCode = getaddrinfo(hostname, NULL, &hint, &res);	// errCode = getaddrinfo(hostname, NULL, NULL, &res);
+			if (errCode != 0) {
+				errStr = errCode == EAI_SYSTEM ? (strerror(errno)) : ((PCHAR) gai_strerror(errCode));
+				CHK_ERR(FALSE, STATUS_RESOLVE_HOSTNAME_FAILED, "getaddrinfo() with errno %s", errStr);
+			}
+			DLOGD("### getaddrinfo ok ");
+
+			for (rp = res; rp != NULL && !resolved; rp = rp->ai_next) {
+				if (rp->ai_family == AF_INET) {
+					DLOGD(" ### AF_INET ### ");
+					ipv4Addr = (struct sockaddr_in*) rp->ai_addr;
+					destIp->family = KVS_IP_FAMILY_TYPE_IPV4;
+					MEMCPY(destIp->address, &ipv4Addr->sin_addr, IPV4_ADDRESS_LENGTH);
+					resolved = TRUE;
+				}
+			}
+			freeaddrinfo(res);
+			CHK_ERR(resolved, STATUS_HOSTNAME_NOT_FOUND, "Could not find network address of %s", hostname);
+			getIpAddrStr(destIp, addressResolved, ARRAY_SIZE(addressResolved));
+			DLOGI("ICE Server address for %s with getaddrinfo: %s", hostname, addressResolved);
+			reuseAddr(1, hostname, addressResolved);
+		}
     }
 
-    for (rp = res; rp != NULL && !resolved; rp = rp->ai_next) {
-        if (rp->ai_family == AF_INET) {
-            ipv4Addr = (struct sockaddr_in*) rp->ai_addr;
-            destIp->family = KVS_IP_FAMILY_TYPE_IPV4;
-            MEMCPY(destIp->address, &ipv4Addr->sin_addr, IPV4_ADDRESS_LENGTH);
-            resolved = TRUE;
-        } else if (rp->ai_family == AF_INET6) {
-            ipv6Addr = (struct sockaddr_in6*) rp->ai_addr;
-            destIp->family = KVS_IP_FAMILY_TYPE_IPV6;
-            MEMCPY(destIp->address, &ipv6Addr->sin6_addr, IPV6_ADDRESS_LENGTH);
-            resolved = TRUE;
-        }
+    else {
+        DLOGI("ICE Server address for %s: %s", hostname, addr);
+        inet_pton(AF_INET, addr, &inaddr);
+        destIp->family = KVS_IP_FAMILY_TYPE_IPV4;
+        MEMCPY(destIp->address, &inaddr, IPV4_ADDRESS_LENGTH);
     }
 
-    freeaddrinfo(res);
-    CHK_ERR(resolved, STATUS_HOSTNAME_NOT_FOUND, "could not find network address of %s", hostname);
+CleanUp:
+    CHK_LOG_ERR(retStatus);
+
+   return retStatus;
+}
+
+#else
+
+STATUS getIpWithHostName(PCHAR hostname, PKvsIpAddress destIp)
+{
+	DLOGD("### enter getIpWithHostName, line: %d", __LINE__);
+    STATUS retStatus = STATUS_SUCCESS;
+    INT32 errCode;
+    PCHAR errStr;
+    struct addrinfo *res, *rp;
+	struct addrinfo hint = {
+		.ai_flags = (AI_V4MAPPED | AI_ADDRCONFIG),
+		.ai_family = AF_INET,
+		.ai_socktype = 0,
+		.ai_protocol = 0};
+    BOOL resolved = FALSE;
+	struct in_addr inaddr;
+    struct sockaddr_in* ipv4Addr;
+    struct sockaddr_in6* ipv6Addr;
+
+	// Using INET6_ADDRSTRLEN to factor in IPv4 tunneling
+	CHAR addr[INET6_ADDRSTRLEN] = {'\0'};
+	int i = 0,j = 0;
+
+	CHK(hostname != NULL, STATUS_NULL_ARG);
+
+	DLOGI("[ICE SERVER] Hostname received: %s", hostname);
+
+	while(hostname[i] != '.') {
+		if(hostname[i] >= '0' && hostname[i] <= '9') {
+			addr[j] = hostname[i];
+		}
+		else if(hostname[i] == '-') {
+			addr[j] = '.';
+		}
+		j++;
+		i++;
+	}
+
+
+	if (addr[0] == '\0') {
+		DLOGW("[ICE SERVER] Parsing for address failed, fallback to getaddrinfo");
+		errCode = getaddrinfo(hostname, NULL, &hint, &res);
+		errCode = getaddrinfo(hostname, NULL, NULL, &res);
+		if (errCode != 0) {
+			errStr = errCode == EAI_SYSTEM ? strerror(errno) : (PCHAR) gai_strerror(errCode);
+			CHK_ERR(FALSE, STATUS_RESOLVE_HOSTNAME_FAILED, "getaddrinfo() with errno %s", errStr);
+		}
+
+		for (rp = res; rp != NULL && !resolved; rp = rp->ai_next) {
+			if (rp->ai_family == AF_INET) {
+				ipv4Addr = (struct sockaddr_in*) rp->ai_addr;
+				destIp->family = KVS_IP_FAMILY_TYPE_IPV4;
+				MEMCPY(destIp->address, &ipv4Addr->sin_addr, IPV4_ADDRESS_LENGTH);
+				resolved = TRUE;
+			}
+		}
+
+		freeaddrinfo(res);
+		CHK_ERR(resolved, STATUS_HOSTNAME_NOT_FOUND, "could not find network address of %s", hostname);
+	} else {
+		DLOGW("[ICE SERVER] Address: %s", addr);
+		inet_pton(AF_INET, addr, &inaddr);
+		destIp->family = KVS_IP_FAMILY_TYPE_IPV4;
+		MEMCPY(destIp->address, &inaddr, IPV4_ADDRESS_LENGTH);
+	}
 
 CleanUp:
 
@@ -343,6 +592,7 @@ CleanUp:
 
     return retStatus;
 }
+#endif
 
 STATUS getIpAddrStr(PKvsIpAddress pKvsIpAddress, PCHAR pBuffer, UINT32 bufferLen)
 {

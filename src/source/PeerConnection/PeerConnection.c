@@ -2,6 +2,8 @@
 
 #include "../Include_i.h"
 
+#define VIDEO_H265 1
+
 static volatile ATOMIC_BOOL gKvsWebRtcInitialized = (SIZE_T) FALSE;
 
 STATUS allocateSrtp(PKvsPeerConnection pKvsPeerConnection)
@@ -35,6 +37,7 @@ CleanUp:
     return retStatus;
 }
 
+#ifdef ENABLE_DATA_CHANNEL
 STATUS allocateSctpSortDataChannelsDataCallback(UINT64 customData, PHashEntry pHashEntry)
 {
     STATUS retStatus = STATUS_SUCCESS;
@@ -101,11 +104,13 @@ STATUS allocateSctp(PKvsPeerConnection pKvsPeerConnection)
         if (pKvsDataChannel->onOpen != NULL) {
             pKvsDataChannel->onOpen(pKvsDataChannel->onOpenCustomData, &pKvsDataChannel->dataChannel);
         }
+		DLOGD("to update entry in hash table with recent changes to data channel");
     }
 
 CleanUp:
     return retStatus;
 }
+#endif
 
 VOID onInboundPacket(UINT64 customData, PBYTE buff, UINT32 buffLen)
 {
@@ -130,12 +135,15 @@ VOID onInboundPacket(UINT64 customData, PBYTE buff, UINT32 buffLen)
     if (buff[0] > 19 && buff[0] < 64) {
         dtlsSessionProcessPacket(pKvsPeerConnection->pDtlsSession, buff, &signedBuffLen);
 
+#ifdef ENABLE_DATA_CHANNEL
         if (signedBuffLen > 0) {
             CHK_STATUS(putSctpPacket(pKvsPeerConnection->pSctpSession, buff, signedBuffLen));
         }
+#endif
 
         CHK_STATUS(dtlsSessionIsInitFinished(pKvsPeerConnection->pDtlsSession, &isDtlsConnected));
         if (isDtlsConnected) {
+			DLOGD("onInboundPacket, isDtlsConnected true");
             if (pKvsPeerConnection->pSrtpSession == NULL) {
                 CHK_STATUS(allocateSrtp(pKvsPeerConnection));
             }
@@ -146,7 +154,9 @@ VOID onInboundPacket(UINT64 customData, PBYTE buff, UINT32 buffLen)
             }
 #endif
             changePeerConnectionState(pKvsPeerConnection, RTC_PEER_CONNECTION_STATE_CONNECTED);
-        }
+        } else {
+			DLOGD("onInboundPacket, isDtlsConnected false");
+		}
 
     } else if ((buff[0] > 127 && buff[0] < 192) && (pKvsPeerConnection->pSrtpSession != NULL)) {
         if (buff[1] >= 192 && buff[1] <= 223) {
@@ -256,6 +266,9 @@ CleanUp:
 
 STATUS changePeerConnectionState(PKvsPeerConnection pKvsPeerConnection, RTC_PEER_CONNECTION_STATE newState)
 {
+
+	DLOGD("enter changePeerConnectionState, newState:%d", newState);
+
     STATUS retStatus = STATUS_SUCCESS;
     BOOL locked = FALSE;
     RtcOnConnectionStateChange onConnectionStateChange = NULL;
@@ -422,10 +435,12 @@ VOID onIceConnectionStateChange(UINT64 customData, UINT64 connectionState)
         CHK_STATUS(dtlsSessionIsInitFinished(pKvsPeerConnection->pDtlsSession, &dtlsConnected));
 
         if (dtlsConnected) {
+			DLOGD("dtlsConnected yes");
             // In ICE restart scenario, DTLS handshake is not going to be reset. Therefore, we need to check
             // if the DTLS state has been connected.
             newConnectionState = RTC_PEER_CONNECTION_STATE_CONNECTED;
         } else {
+			DLOGD("dtlsConnected no, will start dtls");
             // PeerConnection's state changes to CONNECTED only when DTLS state is also connected. So, we need
             // wait until DTLS state changes to CONNECTED.
             //
@@ -668,6 +683,7 @@ CleanUp:
 
 STATUS createPeerConnection(PRtcConfiguration pConfiguration, PRtcPeerConnection* ppPeerConnection)
 {
+	DLOGD("enter createPeerConnection, line: %d", __LINE__);
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
     PKvsPeerConnection pKvsPeerConnection = NULL;
@@ -700,6 +716,8 @@ STATUS createPeerConnection(PRtcConfiguration pConfiguration, PRtcPeerConnection
     CHK_STATUS(hashTableCreateWithParams(CODEC_HASH_TABLE_BUCKET_COUNT, CODEC_HASH_TABLE_BUCKET_LENGTH, &pKvsPeerConnection->pDataChannels));
     CHK_STATUS(hashTableCreateWithParams(RTX_HASH_TABLE_BUCKET_COUNT, RTX_HASH_TABLE_BUCKET_LENGTH, &pKvsPeerConnection->pRtxTable));
     CHK_STATUS(doubleListCreate(&(pKvsPeerConnection->pTransceivers)));
+	CHK_STATUS(doubleListCreate(&(pKvsPeerConnection->pFakeTransceivers)));
+	CHK_STATUS(doubleListCreate(&(pKvsPeerConnection->pAnswerTransceivers)));
 
     pKvsPeerConnection->pSrtpSessionLock = MUTEX_CREATE(TRUE);
     pKvsPeerConnection->peerConnectionObjLock = MUTEX_CREATE(FALSE);
@@ -774,11 +792,21 @@ STATUS freePeerConnection(PRtcPeerConnection* ppPeerConnection)
 
     /* Free structs that have their own thread. SCTP has threads created by SCTP library. IceAgent has the
      * connectionListener thread. Free SCTP first so it wont try to send anything through ICE. */
+#ifdef ENABLE_DATA_CHANNEL
     CHK_LOG_ERR(freeSctpSession(&pKvsPeerConnection->pSctpSession));
+#endif
     CHK_LOG_ERR(freeIceAgent(&pKvsPeerConnection->pIceAgent));
 
     // free transceivers
     CHK_LOG_ERR(doubleListGetHeadNode(pKvsPeerConnection->pTransceivers, &pCurNode));
+    while (pCurNode != NULL) {
+        CHK_LOG_ERR(doubleListGetNodeData(pCurNode, &item));
+        CHK_LOG_ERR(freeKvsRtpTransceiver((PKvsRtpTransceiver*) &item));
+
+        pCurNode = pCurNode->pNext;
+    }
+
+    CHK_LOG_ERR(doubleListGetHeadNode(pKvsPeerConnection->pFakeTransceivers, &pCurNode));
     while (pCurNode != NULL) {
         CHK_LOG_ERR(doubleListGetNodeData(pCurNode, &item));
         CHK_LOG_ERR(freeKvsRtpTransceiver((PKvsRtpTransceiver*) &item));
@@ -794,6 +822,8 @@ STATUS freePeerConnection(PRtcPeerConnection* ppPeerConnection)
     CHK_LOG_ERR(freeSrtpSession(&pKvsPeerConnection->pSrtpSession));
     CHK_LOG_ERR(freeDtlsSession(&pKvsPeerConnection->pDtlsSession));
     CHK_LOG_ERR(doubleListFree(pKvsPeerConnection->pTransceivers));
+    CHK_LOG_ERR(doubleListFree(pKvsPeerConnection->pFakeTransceivers));
+    CHK_LOG_ERR(doubleListFree(pKvsPeerConnection->pAnswerTransceivers));
     CHK_LOG_ERR(hashTableFree(pKvsPeerConnection->pCodecTable));
     CHK_LOG_ERR(hashTableFree(pKvsPeerConnection->pRtxTable));
     if (IS_VALID_MUTEX_VALUE(pKvsPeerConnection->pSrtpSessionLock)) {
@@ -1203,10 +1233,25 @@ STATUS addTransceiver(PRtcPeerConnection pPeerConnection, PRtcMediaStreamTrack p
 
     CHK(pKvsPeerConnection != NULL, STATUS_NULL_ARG);
 
+//    if (direction == RTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY && pRtcMediaStreamTrack == NULL) {
+//        MEMSET(&videoTrack, 0x00, SIZEOF(RtcMediaStreamTrack));
+//        videoTrack.kind = MEDIA_STREAM_TRACK_KIND_VIDEO;
+//        videoTrack.codec = RTC_CODEC_H264_PROFILE_42E01F_LEVEL_ASYMMETRY_ALLOWED_PACKETIZATION_MODE;
+//        STRCPY(videoTrack.streamId, "myKvsVideoStream");
+//        STRCPY(videoTrack.trackId, "myVideoTrack");
+//        pRtcMediaStreamTrack = &videoTrack;
+//    }
+
     if (direction == RTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY && pRtcMediaStreamTrack == NULL) {
         MEMSET(&videoTrack, 0x00, SIZEOF(RtcMediaStreamTrack));
         videoTrack.kind = MEDIA_STREAM_TRACK_KIND_VIDEO;
-        videoTrack.codec = RTC_CODEC_H264_PROFILE_42E01F_LEVEL_ASYMMETRY_ALLOWED_PACKETIZATION_MODE;
+	
+        if (VIDEO_H265) {
+        	videoTrack.codec = RTC_CODEC_H265_PROFILE_42E01F_LEVEL_ASYMMETRY_ALLOWED_PACKETIZATION_MODE;
+		} else {
+			videoTrack.codec = RTC_CODEC_H264_PROFILE_42E01F_LEVEL_ASYMMETRY_ALLOWED_PACKETIZATION_MODE;
+		}
+		
         STRCPY(videoTrack.streamId, "myKvsVideoStream");
         STRCPY(videoTrack.trackId, "myVideoTrack");
         pRtcMediaStreamTrack = &videoTrack;
@@ -1217,6 +1262,18 @@ STATUS addTransceiver(PRtcPeerConnection pPeerConnection, PRtcMediaStreamTrack p
             depayFunc = depayOpusFromRtpPayload;
             clockRate = OPUS_CLOCKRATE;
             break;
+	
+        case RTC_CODEC_AAC:
+			printf(">>>>>>>>>> depayAacFromRtpPayload, audiosamplerate=%d <<<<<<<<<<<\n", pRtcMediaStreamTrack->audiosamplerate);
+            depayFunc = depayAacFromRtpPayload;
+			if(pRtcMediaStreamTrack->audiosamplerate == 16000){
+				clockRate = AAC_CLOCKRATE;
+			}else if(pRtcMediaStreamTrack->audiosamplerate == 8000){
+				clockRate = PCM_CLOCKRATE;
+			} else {
+				clockRate = AAC_CLOCKRATE;
+			}
+            break;
 
         case RTC_CODEC_MULAW:
         case RTC_CODEC_ALAW:
@@ -1225,12 +1282,19 @@ STATUS addTransceiver(PRtcPeerConnection pPeerConnection, PRtcMediaStreamTrack p
             break;
 
         case RTC_CODEC_H264_PROFILE_42E01F_LEVEL_ASYMMETRY_ALLOWED_PACKETIZATION_MODE:
+			printf(">>>>>>>>>> depayH264FromRtpPayload <<<<<<<<<<<\n");
             depayFunc = depayH264FromRtpPayload;
             clockRate = VIDEO_CLOCKRATE;
             break;
 
         case RTC_CODEC_VP8:
             depayFunc = depayVP8FromRtpPayload;
+            clockRate = VIDEO_CLOCKRATE;
+            break;
+
+        case RTC_CODEC_H265_PROFILE_42E01F_LEVEL_ASYMMETRY_ALLOWED_PACKETIZATION_MODE:
+			printf(">>>>>>>>>> depayH265FromRtpPayload <<<<<<<<<<<\n");
+            depayFunc = depayH265FromRtpPayload;
             clockRate = VIDEO_CLOCKRATE;
             break;
 
@@ -1278,8 +1342,38 @@ STATUS addSupportedCodec(PRtcPeerConnection pPeerConnection, RTC_CODEC rtcCodec)
 
     CHK(pKvsPeerConnection != NULL, STATUS_NULL_ARG);
 
+	if (rtcCodec == 6)
+	{
+		CHK_STATUS(hashTablePut(pKvsPeerConnection->pCodecTable, rtcCodec, 127));
+		printf("### hashTablePut: key:%d, value:%d, %p, %s:%d\n\n", rtcCodec, 127, pKvsPeerConnection->pCodecTable,__FILE__,__LINE__);
+		
+		UINT64 data;
+		CHK_STATUS(hashTableGet(pKvsPeerConnection->pCodecTable, rtcCodec, &data));
+		printf("### hashTablePut: rtcCodec:%d 127, Get:%d, pCodecTable:%p\n\n", rtcCodec, data, pKvsPeerConnection->pCodecTable);
+	}
+	else if (rtcCodec == 2)
+	{
+		CHK_STATUS(hashTablePut(pKvsPeerConnection->pCodecTable, rtcCodec, 111));
+		printf("### hashTablePut: key:%d, value:%d, %p, %s:%d\n\n", rtcCodec, 111, pKvsPeerConnection->pCodecTable,__FILE__,__LINE__);
+		
+		UINT64 data;
+		CHK_STATUS(hashTableGet(pKvsPeerConnection->pCodecTable, rtcCodec, &data));
+		printf("### hashTableGet: rtcCodec:%d 111, Get:%d, pCodecTable:%p\n\n", rtcCodec, data, pKvsPeerConnection->pCodecTable);
+	}
+	else if (rtcCodec == 7)
+	{
+		CHK_STATUS(hashTablePut(pKvsPeerConnection->pCodecTable, rtcCodec, 96));
+		printf("### hashTablePut: key:%d, value:%d, %p, %s:%d\n\n", rtcCodec, 96, pKvsPeerConnection->pCodecTable,__FILE__,__LINE__);
+		
+		UINT64 data;
+		CHK_STATUS(hashTableGet(pKvsPeerConnection->pCodecTable, rtcCodec, &data));
+		printf("### hashTableGet: rtcCodec:%d 96, Get:%d, pCodecTable:%p\n\n", rtcCodec, data, pKvsPeerConnection->pCodecTable);
+	}
+	else
+	{
+		printf("### hashTablePut: rtcCodec:%d, 0\n\n", rtcCodec);
     CHK_STATUS(hashTablePut(pKvsPeerConnection->pCodecTable, rtcCodec, 0));
-
+	}
 CleanUp:
 
     LEAVES();

@@ -679,6 +679,8 @@ STATUS refreshIceConfiguration(PSignalingClient pSignalingClient)
     curTime = SIGNALING_GET_CURRENT_TIME(pSignalingClient);
     CHK(pSignalingClient->iceConfigCount == 0 || curTime > pSignalingClient->iceConfigExpiration, retStatus);
 
+    DLOGI("Refreshing the ICE Server Configuration Action");
+
     // ICE config can be retrieved in specific states only
     CHK_STATUS(acceptSignalingStateMachineState(
         pSignalingClient, SIGNALING_STATE_READY | SIGNALING_STATE_CONNECT | SIGNALING_STATE_CONNECTED | SIGNALING_STATE_DISCONNECTED));

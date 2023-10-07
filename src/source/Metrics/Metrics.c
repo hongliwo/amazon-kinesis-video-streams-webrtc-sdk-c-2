@@ -203,6 +203,8 @@ CleanUp:
 
 STATUS rtcPeerConnectionGetMetrics(PRtcPeerConnection pRtcPeerConnection, PRtcRtpTransceiver pRtcRtpTransceiver, PRtcStats pRtcMetrics)
 {
+    DLOGD("Enter rtcPeerConnectionGetMetrics");
+
     STATUS retStatus = STATUS_SUCCESS;
     CHK(pRtcPeerConnection != NULL && pRtcMetrics != NULL, STATUS_NULL_ARG);
     pRtcMetrics->timestamp = GETTIME();
@@ -255,5 +257,8 @@ STATUS rtcPeerConnectionGetMetrics(PRtcPeerConnection pRtcPeerConnection, PRtcRt
     }
 CleanUp:
     CHK_LOG_ERR(retStatus);
+
+    DLOGD("Leave rtcPeerConnectionGetMetrics");
+
     return retStatus;
 }

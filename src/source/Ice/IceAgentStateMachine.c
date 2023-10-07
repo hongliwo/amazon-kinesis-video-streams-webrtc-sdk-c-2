@@ -227,6 +227,8 @@ STATUS fromCheckConnectionIceAgentState(UINT64 customData, PUINT64 pState)
     while (pCurNode != NULL && !connectedCandidatePairFound) {
         pIceCandidatePair = (PIceCandidatePair) pCurNode->data;
         DLOGD("Checking pair: %s %s, state: %d", pIceCandidatePair->local->id, pIceCandidatePair->remote->id, pIceCandidatePair->state);
+        DLOGD("Checking pair: %s:%d %s:%d, state: %d", pIceCandidatePair->local->ipAddress.address, pIceCandidatePair->local->iceCandidateType, 
+				pIceCandidatePair->remote->ipAddress.address, pIceCandidatePair->remote->iceCandidateType, pIceCandidatePair->state);
         pCurNode = pCurNode->pNext;
 
         if (pIceCandidatePair->state == ICE_CANDIDATE_PAIR_STATE_SUCCEEDED) {

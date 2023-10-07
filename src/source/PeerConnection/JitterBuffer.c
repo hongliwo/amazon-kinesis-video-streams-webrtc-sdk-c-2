@@ -221,12 +221,14 @@ STATUS jitterBufferInternalParse(PJitterBuffer pJitterBuffer, BOOL bufferClosed)
         } else {
             lastNonNullIndex = index;
             retStatus = hashTableGet(pJitterBuffer->pPkgBufferHashTable, index, &hashValue);
-            pCurPacket = (PRtpPacket) hashValue;
-            if (retStatus == STATUS_SUCCESS || retStatus == STATUS_HASH_KEY_NOT_PRESENT) {
-                retStatus = STATUS_SUCCESS;
+            if (retStatus == STATUS_HASH_KEY_NOT_PRESENT) {
+                // should be unreachable, this means hashTablContains() said we had it but hashTableGet() couldn't find it.
+                continue;
             } else {
-                CHK(FALSE, retStatus);
+                CHK_STATUS(retStatus);
             }
+            pCurPacket = (PRtpPacket) hashValue;
+            CHK(pCurPacket != NULL, STATUS_NULL_ARG);
             curTimestamp = pCurPacket->header.timestamp;
             // new timestamp on an RTP packet means new frame
             if (curTimestamp != pJitterBuffer->headTimestamp) {
@@ -315,7 +317,9 @@ STATUS jitterBufferDropBufferData(PJitterBuffer pJitterBuffer, UINT16 startIndex
         if (hasEntry) {
             CHK_STATUS(hashTableGet(pJitterBuffer->pPkgBufferHashTable, index, &hashValue));
             pCurPacket = (PRtpPacket) hashValue;
-            freeRtpPacket(&pCurPacket);
+            if (pCurPacket) {
+                freeRtpPacket(&pCurPacket);
+            }
             CHK_STATUS(hashTableRemove(pJitterBuffer->pPkgBufferHashTable, index));
         }
     }

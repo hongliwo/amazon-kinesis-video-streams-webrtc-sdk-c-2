@@ -143,6 +143,10 @@ extern "C" {
 #define STATUS_GET_SOCKET_FLAG_FAILED              STATUS_NETWORKING_BASE + 0x00000024
 #define STATUS_SET_SOCKET_FLAG_FAILED              STATUS_NETWORKING_BASE + 0x00000025
 #define STATUS_CLOSE_SOCKET_FAILED                 STATUS_NETWORKING_BASE + 0x00000026
+#define STATUS_CREATE_SOCKET_PAIR_FAILED           STATUS_NETWORKING_BASE + 0x00000027
+#define STATUS_SOCKET_WRITE_FAILED                 STATUS_NETWORKING_BASE + 0X00000028
+#define STATUS_INVALID_ADDRESS_LENGTH              STATUS_NETWORKING_BASE + 0X00000029
+
 /*!@} */
 
 /////////////////////////////////////////////////////
@@ -205,6 +209,7 @@ extern "C" {
 #define STATUS_TURN_CONNECTION_PEER_NOT_USABLE                             STATUS_ICE_BASE + 0x00000027
 #define STATUS_ICE_SERVER_INDEX_INVALID                                    STATUS_ICE_BASE + 0x00000028
 #define STATUS_ICE_CANDIDATE_STRING_MISSING_TYPE                           STATUS_ICE_BASE + 0x00000029
+#define STATUS_TURN_CONNECTION_ALLOCAITON_FAILED                           STATUS_ICE_BASE + 0x0000002a
 /*!@} */
 
 /////////////////////////////////////////////////////
@@ -623,7 +628,9 @@ extern "C" {
 /**
  * Parameterized string for KVS STUN Server
  */
-#define KINESIS_VIDEO_STUN_URL "stun:stun.kinesisvideo.%s.amazonaws.com:443"
+#define KINESIS_VIDEO_STUN_URL_POSTFIX    "amazonaws.com"
+#define KINESIS_VIDEO_STUN_URL_POSTFIX_CN "amazonaws.com.cn"
+#define KINESIS_VIDEO_STUN_URL            "stun:stun.kinesisvideo.%s.%s:443"
 
 /**
  * Default signaling SSL port
@@ -727,6 +734,8 @@ typedef enum {
     RTC_CODEC_VP8 = 3,                                                            //!< VP8 video codec.
     RTC_CODEC_MULAW = 4,                                                          //!< MULAW audio codec
     RTC_CODEC_ALAW = 5,                                                           //!< ALAW audio codec
+    RTC_CODEC_H265_PROFILE_42E01F_LEVEL_ASYMMETRY_ALLOWED_PACKETIZATION_MODE = 6, //!< H265 video codec
+    RTC_CODEC_AAC = 7,                                                            //!< AAC audio codec
 } RTC_CODEC;
 
 /**
@@ -993,6 +1002,7 @@ typedef struct {
     CHAR trackId[MAX_MEDIA_STREAM_ID_LEN + 1];  //!< non-standard, id of this individual track
     CHAR streamId[MAX_MEDIA_STREAM_ID_LEN + 1]; //!< non-standard, id of the MediaStream this track belongs too
     MEDIA_STREAM_TRACK_KIND kind;               //!< Kind of track - audio or video
+    int audiosamplerate;
 } RtcMediaStreamTrack, *PRtcMediaStreamTrack;
 
 /**

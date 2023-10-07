@@ -41,6 +41,7 @@ extern "C" {
 typedef enum {
     RTC_RTX_CODEC_H264_PROFILE_42E01F_LEVEL_ASYMMETRY_ALLOWED_PACKETIZATION_MODE = 1,
     RTC_RTX_CODEC_VP8 = 2,
+    RTC_RTX_CODEC_H265_PROFILE_42E01F_LEVEL_ASYMMETRY_ALLOWED_PACKETIZATION_MODE = 3,
 } RTX_CODEC;
 
 typedef struct {
@@ -77,6 +78,9 @@ typedef struct {
 
     SessionDescription remoteSessionDescription;
     PDoubleList pTransceivers;
+    PDoubleList pFakeTransceivers;
+    PDoubleList pAnswerTransceivers;
+
     BOOL sctpIsEnabled;
 
     CHAR localIceUfrag[LOCAL_ICE_UFRAG_LEN + 1];

@@ -96,6 +96,8 @@ STATUS createIceAgent(PCHAR username, PCHAR password, PIceAgentCallbacks pIceAge
             STATUS_SUCCEEDED(parseIceServer(&pIceAgent->iceServers[pIceAgent->iceServersCount], (PCHAR) pRtcConfiguration->iceServers[i].urls,
                                             (PCHAR) pRtcConfiguration->iceServers[i].username,
                                             (PCHAR) pRtcConfiguration->iceServers[i].credential))) {
+			DLOGD("### in createIceAgent, line: %d, pRtcConfiguration->iceServers[i].urls:%s", 
+					__LINE__, pRtcConfiguration->iceServers[i].urls);
             pIceAgent->rtcIceServerDiagnostics[i].port = (INT32) getInt16(pIceAgent->iceServers[i].ipAddress.port);
             switch (pIceAgent->iceServers[pIceAgent->iceServersCount].transport) {
                 case KVS_SOCKET_PROTOCOL_UDP:
@@ -637,6 +639,8 @@ STATUS iceAgentSendPacket(PIceAgent pIceAgent, PBYTE pBuffer, UINT32 bufferLen)
     CHK_WARN(pIceAgent->pDataSendingIceCandidatePair != NULL, retStatus, "No valid ice candidate pair available to send data");
     CHK_WARN(pIceAgent->pDataSendingIceCandidatePair->state == ICE_CANDIDATE_PAIR_STATE_SUCCEEDED, retStatus,
              "Invalid state for data sending candidate pair.");
+
+    CHK_WARN(pIceAgent->pDataSendingIceCandidatePair->local != NULL, retStatus, "Local ice candidate is invalid");
 
     isRelay = IS_CANN_PAIR_SENDING_FROM_RELAYED(pIceAgent->pDataSendingIceCandidatePair);
     if (isRelay) {
@@ -1229,6 +1233,7 @@ STATUS iceCandidatePairCheckConnection(PStunPacket pStunBindingRequest, PIceAgen
     UINT32 checkSum = 0;
 
     CHK(pStunBindingRequest != NULL && pIceAgent != NULL && pIceCandidatePair != NULL, STATUS_NULL_ARG);
+    CHK(pIceCandidatePair->local != NULL && pIceCandidatePair->remote != NULL, STATUS_NULL_ARG);
     CHK_STATUS(getStunAttribute(pStunBindingRequest, STUN_ATTRIBUTE_TYPE_PRIORITY, (PStunAttributeHeader*) &pStunAttributePriority));
 
     CHK(pStunAttributePriority != NULL, STATUS_INVALID_ARG);
@@ -1236,10 +1241,10 @@ STATUS iceCandidatePairCheckConnection(PStunPacket pStunBindingRequest, PIceAgen
     if (pIceCandidatePair->local->ipAddress.family == KVS_IP_FAMILY_TYPE_IPV4) {
         DLOGD("remote ip:%u.%u.%u.%u, port:%u, local ip:%u.%u.%u.%u, port:%u", pIceCandidatePair->remote->ipAddress.address[0],
               pIceCandidatePair->remote->ipAddress.address[1], pIceCandidatePair->remote->ipAddress.address[2],
-              pIceCandidatePair->remote->ipAddress.address[3], pIceCandidatePair->remote->ipAddress.address[0],
-              pIceCandidatePair->remote->ipAddress.port, pIceCandidatePair->local->ipAddress.address[1],
+              pIceCandidatePair->remote->ipAddress.address[3], (UINT16) getInt16(pIceCandidatePair->remote->ipAddress.port),
+              pIceCandidatePair->local->ipAddress.address[0], pIceCandidatePair->local->ipAddress.address[1],
               pIceCandidatePair->local->ipAddress.address[2], pIceCandidatePair->local->ipAddress.address[3],
-              pIceCandidatePair->local->ipAddress.address[0], pIceCandidatePair->local->ipAddress.port);
+              (UINT16) getInt16(pIceCandidatePair->local->ipAddress.port));
     }
 
     // update priority and transaction id
@@ -1553,7 +1558,7 @@ STATUS iceAgentGatherCandidateTimerCallback(UINT32 timerId, UINT64 currentTime, 
 
     /* stop scheduling if there is no more pending candidate or if timeout is reached. */
     if ((totalCandidateCount > 0 && pendingCandidateCount == 0) || currentTime >= pIceAgent->candidateGatheringEndTime) {
-        DLOGD("Candidate gathering completed.");
+        DLOGD("Candidate gathering completed. totalCandidateCount:%d, pendingCandidateCount:%d, duatime:%d", totalCandidateCount, pendingCandidateCount, pIceAgent->candidateGatheringEndTime - currentTime);
         stopScheduling = TRUE;
         pIceAgent->iceCandidateGatheringTimerTask = MAX_UINT32;
     }
@@ -1744,6 +1749,9 @@ STATUS iceAgentInitRelayCandidates(PIceAgent pIceAgent)
 
     CHK(pIceAgent != NULL, STATUS_NULL_ARG);
     for (j = 0; j < pIceAgent->iceServersCount; j++) {
+		DLOGD("### pIceAgent->iceServersCount:%d/%d, isTurn:%d, transport:%d, ip:%s", 
+				j+1,pIceAgent->iceServersCount, pIceAgent->iceServers[j].isTurn,
+				pIceAgent->iceServers[j].transport, inet_ntoa(*(struct in_addr *)(&pIceAgent->iceServers[j].ipAddress.address)));
         if (pIceAgent->iceServers[j].isTurn) {
             if (pIceAgent->iceServers[j].transport == KVS_SOCKET_PROTOCOL_UDP || pIceAgent->iceServers[j].transport == KVS_SOCKET_PROTOCOL_NONE) {
                 CHK_STATUS(iceAgentInitRelayCandidate(pIceAgent, j, KVS_SOCKET_PROTOCOL_UDP));
@@ -1763,6 +1771,23 @@ CleanUp:
         iceAgentFatalError(pIceAgent, retStatus);
     }
 
+    return retStatus;
+}
+
+STATUS turnStateFailedFn(PSocketConnection pSocketConnection, UINT64 data)
+{
+    UNUSED_PARAM(pSocketConnection);
+
+    STATUS retStatus = STATUS_SUCCESS;
+
+    PIceCandidate pNewCandidate = (PIceCandidate) data;
+    CHK(pNewCandidate != NULL, STATUS_NULL_ARG);
+
+    if (pNewCandidate->state == ICE_CANDIDATE_STATE_NEW) {
+        pNewCandidate->state = ICE_CANDIDATE_STATE_INVALID;
+    }
+
+CleanUp:
     return retStatus;
 }
 
@@ -1801,8 +1826,13 @@ STATUS iceAgentInitRelayCandidate(PIceAgent pIceAgent, UINT32 iceServerIndex, KV
     pNewCandidate->foundation = pIceAgent->foundationCounter++; // we dont generate candidates that have the same foundation.
     pNewCandidate->priority = computeCandidatePriority(pNewCandidate);
 
+    TurnConnectionCallbacks callback = {0};
+    callback.customData = (UINT64) pNewCandidate;
+    callback.relayAddressAvailableFn = NULL;
+    callback.turnStateFailedFn = turnStateFailedFn;
+
     CHK_STATUS(createTurnConnection(&pIceAgent->iceServers[iceServerIndex], pIceAgent->timerQueueHandle,
-                                    TURN_CONNECTION_DATA_TRANSFER_MODE_SEND_INDIDATION, protocol, NULL, pNewCandidate->pSocketConnection,
+                                    TURN_CONNECTION_DATA_TRANSFER_MODE_SEND_INDIDATION, protocol, &callback, pNewCandidate->pSocketConnection,
                                     pIceAgent->pConnectionListener, &pTurnConnection));
     pNewCandidate->pIceAgent = pIceAgent;
     pNewCandidate->pTurnConnection = pTurnConnection;
@@ -2098,7 +2128,7 @@ STATUS iceAgentReadyStateSetup(PIceAgent pIceAgent)
     while (pCurNode != NULL && pNominatedAndValidCandidatePair == NULL) {
         pIceCandidatePair = (PIceCandidatePair) pCurNode->data;
         pCurNode = pCurNode->pNext;
-
+		DLOGD("pIceCandidatePair->nominated:%d, IceCandidatePair->state:%d", pIceCandidatePair->nominated, pIceCandidatePair->state);
         if (pIceCandidatePair->nominated && pIceCandidatePair->state == ICE_CANDIDATE_PAIR_STATE_SUCCEEDED) {
             pNominatedAndValidCandidatePair = pIceCandidatePair;
             break;
@@ -2482,7 +2512,9 @@ STATUS handleStunPacket(PIceAgent pIceAgent, PBYTE pBuffer, UINT32 bufferLen, PS
                          "Cannot find candidate pair with local candidate %s and remote candidate %s. Dropping STUN binding success response",
                          ipAddrStr2, ipAddrStr);
             }
-            DLOGV("Pair binding response! %s %s", pIceCandidatePair->local->id, pIceCandidatePair->remote->id);
+            DLOGV("Pair binding response! %s %s, localip:%s:%d, remoteip:%s:%d", pIceCandidatePair->local->id, pIceCandidatePair->remote->id,
+					inet_ntoa(*(struct in_addr *)pIceCandidatePair->local->ipAddress.address), pIceCandidatePair->local->ipAddress.port,
+					inet_ntoa(*(struct in_addr *)pIceCandidatePair->remote->ipAddress.address), pIceCandidatePair->remote->ipAddress.port);
             retStatus = hashTableGet(pIceCandidatePair->requestSentTime, checkSum, &requestSentTime);
             if (retStatus != STATUS_SUCCESS) {
                 DLOGW("Unable to fetch request Timestamp from the hash table. No update to RTT for the pair (error code: 0x%08x)", retStatus);
@@ -2513,7 +2545,9 @@ STATUS handleStunPacket(PIceAgent pIceAgent, PBYTE pBuffer, UINT32 bufferLen, PS
 
             pStunAttributeAddress = (PStunAttributeAddress) pStunAttr;
 
-            if (!isSameIpAddress(&pStunAttributeAddress->address, &pIceCandidatePair->local->ipAddress, FALSE)) {
+            if (pIceCandidatePair->local->iceCandidateType == ICE_CANDIDATE_TYPE_SERVER_REFLEXIVE &&
+                pIceCandidatePair->remote->iceCandidateType == ICE_CANDIDATE_TYPE_SERVER_REFLEXIVE &&
+                !isSameIpAddress(&pStunAttributeAddress->address, &pIceCandidatePair->local->ipAddress, FALSE)) {
                 // this can happen for host and server reflexive candidates. If the peer
                 // is in the same subnet, server reflexive candidate's binding response's xor mapped ip address will be
                 // the host candidate ip address. In this case we will ignore the packet since the host candidate will
@@ -2523,8 +2557,6 @@ STATUS handleStunPacket(PIceAgent pIceAgent, PBYTE pBuffer, UINT32 bufferLen, PS
                 // we have a peer reflexive local candidate
                 CHK_STATUS(iceAgentCheckPeerReflexiveCandidate(pIceAgent, &pStunAttributeAddress->address, pIceCandidatePair->local->priority, FALSE,
                                                                pSocketConnection));
-
-                CHK(FALSE, retStatus);
             }
 
             if (pIceCandidatePair->state != ICE_CANDIDATE_PAIR_STATE_SUCCEEDED) {

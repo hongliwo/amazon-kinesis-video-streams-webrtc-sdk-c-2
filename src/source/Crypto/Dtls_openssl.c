@@ -376,10 +376,13 @@ STATUS dtlsSessionStart(PDtlsSession pDtlsSession, BOOL isServer)
     } else {
         SSL_set_connect_state(pDtlsSession->pSsl);
     }
+	DLOGD("SSL_do_handshake start");
     sslRet = SSL_do_handshake(pDtlsSession->pSsl);
     if (sslRet <= 0) {
         LOG_OPENSSL_ERROR("SSL_do_handshake");
-    }
+    } else {
+        DLOGD("SSL_do_handshake ok");
+	}
 
     pDtlsSession->dtlsSessionStartTime = GETTIME();
     CHK_STATUS(timerQueueAddTimer(pDtlsSession->timerQueueHandle, DTLS_SESSION_TIMER_START_DELAY, DTLS_TRANSMISSION_INTERVAL,
@@ -414,10 +417,10 @@ STATUS freeDtlsSession(PDtlsSession* ppDtlsSession)
     }
 
     if (pDtlsSession->pSsl != NULL) {
-        SSL_CTX_free(pDtlsSession->pSslCtx);
+        SSL_free(pDtlsSession->pSsl);
     }
     if (pDtlsSession->pSslCtx != NULL) {
-        SSL_free(pDtlsSession->pSsl);
+        SSL_CTX_free(pDtlsSession->pSslCtx);
     }
     if (IS_VALID_MUTEX_VALUE(pDtlsSession->sslLock)) {
         MUTEX_FREE(pDtlsSession->sslLock);
