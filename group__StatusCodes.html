@@ -217,6 +217,8 @@ Macros</h2></td></tr>
 <tr class="separator:gaac03f32227ed4105862f2d1353a26bb7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gab921a27e047a959153fde4d7466ec5aa"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#gab921a27e047a959153fde4d7466ec5aa">KINESIS_VIDEO_STUN_URL</a>&#160;&#160;&#160;&quot;stun:stun.kinesisvideo.%s.%s:443&quot;</td></tr>
 <tr class="separator:gab921a27e047a959153fde4d7466ec5aa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga13238228a0effe4dccc615189c04c73f"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#ga13238228a0effe4dccc615189c04c73f">KINESIS_VIDEO_STUN_URL_WITHOUT_PORT</a>&#160;&#160;&#160;&quot;stun.kinesisvideo.%s.%s&quot;</td></tr>
+<tr class="separator:ga13238228a0effe4dccc615189c04c73f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga88c324018b021dba73e56d93ddab2427"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#ga88c324018b021dba73e56d93ddab2427">SIGNALING_DEFAULT_SSL_PORT</a>&#160;&#160;&#160;DEFAULT_SSL_PORT_NUMBER</td></tr>
 <tr class="separator:ga88c324018b021dba73e56d93ddab2427"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga1410303128efe2263a439489f49300ab"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#ga1410303128efe2263a439489f49300ab">SIGNALING_DEFAULT_NON_SSL_PORT</a>&#160;&#160;&#160;DEFAULT_NON_SSL_PORT_NUMBER</td></tr>
@@ -336,6 +338,9 @@ Variables</h2></td></tr>
 <tr class="memitem:ga66e8134ccd2c83b700bbf4e8e6649a6f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="group__PublicEnums.html#gabaa9adac53ec269df1574665ec4ec222">SDP_TYPE</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#ga66e8134ccd2c83b700bbf4e8e6649a6f">RtcSessionDescriptionInit::type</a></td></tr>
 <tr class="memdesc:ga66e8134ccd2c83b700bbf4e8e6649a6f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Indicates an offer/answer SDP type.  <a href="group__StatusCodes.html#ga66e8134ccd2c83b700bbf4e8e6649a6f">More...</a><br /></td></tr>
 <tr class="separator:ga66e8134ccd2c83b700bbf4e8e6649a6f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gabad78ddf2f8b7fec195ded8d69a74886"><td class="memItemLeft" align="right" valign="top">BOOL&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#gabad78ddf2f8b7fec195ded8d69a74886">RtcSessionDescriptionInit::useTrickleIce</a></td></tr>
+<tr class="memdesc:gabad78ddf2f8b7fec195ded8d69a74886"><td class="mdescLeft">&#160;</td><td class="mdescRight">Indicates if an offer should set trickle ice.  <a href="group__StatusCodes.html#gabad78ddf2f8b7fec195ded8d69a74886">More...</a><br /></td></tr>
+<tr class="separator:gabad78ddf2f8b7fec195ded8d69a74886"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga62c6f63074c9ca7e465cb1bf39854db9"><td class="memItemLeft" align="right" valign="top">CHAR&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#ga62c6f63074c9ca7e465cb1bf39854db9">RtcSessionDescriptionInit::sdp</a> [25000+1]</td></tr>
 <tr class="separator:ga62c6f63074c9ca7e465cb1bf39854db9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gadeaea422887b09718e78abb70d0bd476"><td class="memItemLeft" align="right" valign="top">CHAR&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#gadeaea422887b09718e78abb70d0bd476">RtcIceCandidateInit::candidate</a> [255+1]</td></tr>
@@ -388,8 +393,10 @@ Variables</h2></td></tr>
 <tr class="memitem:ga9121e19802bb740a1b695f2be5250e47"><td class="memItemLeft" align="right" valign="top">UINT32&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#ga9121e19802bb740a1b695f2be5250e47">SignalingClientInfo::stateMachineRetryCountReadOnly</a></td></tr>
 <tr class="separator:ga9121e19802bb740a1b695f2be5250e47"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga1f6bfce0b61a782b35f735370544aadc"><td class="memItemLeft" align="right" valign="top">UINT32&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#ga1f6bfce0b61a782b35f735370544aadc">SignalingClientInfo::signalingMessagesMinimumThreads</a></td></tr>
+<tr class="memdesc:ga1f6bfce0b61a782b35f735370544aadc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Unused field post v1.8.1.  <a href="group__StatusCodes.html#ga1f6bfce0b61a782b35f735370544aadc">More...</a><br /></td></tr>
 <tr class="separator:ga1f6bfce0b61a782b35f735370544aadc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga342d674d1971cf0286208ac91dcb2bea"><td class="memItemLeft" align="right" valign="top">UINT32&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#ga342d674d1971cf0286208ac91dcb2bea">SignalingClientInfo::signalingMessagesMaximumThreads</a></td></tr>
+<tr class="memdesc:ga342d674d1971cf0286208ac91dcb2bea"><td class="mdescLeft">&#160;</td><td class="mdescRight">Unused field post v1.8.1.  <a href="group__StatusCodes.html#ga342d674d1971cf0286208ac91dcb2bea">More...</a><br /></td></tr>
 <tr class="separator:ga342d674d1971cf0286208ac91dcb2bea"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga7aef1a2aa352519fb948d32416fc94f3"><td class="memItemLeft" align="right" valign="top">UINT32&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#ga7aef1a2aa352519fb948d32416fc94f3">ChannelInfo::version</a></td></tr>
 <tr class="memdesc:ga7aef1a2aa352519fb948d32416fc94f3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Version of the structure.  <a href="group__StatusCodes.html#ga7aef1a2aa352519fb948d32416fc94f3">More...</a><br /></td></tr>
@@ -519,6 +526,11 @@ Variables</h2></td></tr>
 <tr class="memitem:ga6f66c0c096b4ed45b0627ab13e3b2c69"><td class="memItemLeft" align="right" valign="top"><a class="el" href="group__PublicEnums.html#ga2ec04821e96a8ea582895e206534b9ad">RTC_RTP_TRANSCEIVER_DIRECTION</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#ga6f66c0c096b4ed45b0627ab13e3b2c69">RtcRtpTransceiverInit::direction</a></td></tr>
 <tr class="memdesc:ga6f66c0c096b4ed45b0627ab13e3b2c69"><td class="mdescLeft">&#160;</td><td class="mdescRight">Transceiver direction - SENDONLY, RECVONLY, SENDRECV.  <a href="group__StatusCodes.html#ga6f66c0c096b4ed45b0627ab13e3b2c69">More...</a><br /></td></tr>
 <tr class="separator:ga6f66c0c096b4ed45b0627ab13e3b2c69"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gace8bf7741e34e83480a207bf14d61c98"><td class="memItemLeft" align="right" valign="top">DOUBLE&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#gace8bf7741e34e83480a207bf14d61c98">RtcRtpTransceiverInit::rollingBufferDurationSec</a></td></tr>
+<tr class="memdesc:gace8bf7741e34e83480a207bf14d61c98"><td class="mdescLeft">&#160;</td><td class="mdescRight">Maximum duration of media that needs to be buffered (in seconds). The lowest allowed is 0.1 seconds (100ms)  <a href="group__StatusCodes.html#gace8bf7741e34e83480a207bf14d61c98">More...</a><br /></td></tr>
+<tr class="separator:gace8bf7741e34e83480a207bf14d61c98"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga520de785dce77b50a14f12afbe7768e5"><td class="memItemLeft" align="right" valign="top">DOUBLE&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#ga520de785dce77b50a14f12afbe7768e5">RtcRtpTransceiverInit::rollingBufferBitratebps</a></td></tr>
+<tr class="separator:ga520de785dce77b50a14f12afbe7768e5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gad83e032fdce8d6ff6d75aea373f6e085"><td class="memItemLeft" align="right" valign="top">BOOL&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#gad83e032fdce8d6ff6d75aea373f6e085">RtcDataChannelInit::ordered</a></td></tr>
 <tr class="memdesc:gad83e032fdce8d6ff6d75aea373f6e085"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decides the order in which data is sent. If true, data is sent in order.  <a href="group__StatusCodes.html#gad83e032fdce8d6ff6d75aea373f6e085">More...</a><br /></td></tr>
 <tr class="separator:gad83e032fdce8d6ff6d75aea373f6e085"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -562,6 +574,12 @@ Variables</h2></td></tr>
 <tr class="memitem:ga9ff5ba01b5b62d3996d2828763ec4a0d"><td class="memItemLeft" align="right" valign="top">UINT32&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#ga9ff5ba01b5b62d3996d2828763ec4a0d">SignalingClientMetrics::version</a></td></tr>
 <tr class="memdesc:ga9ff5ba01b5b62d3996d2828763ec4a0d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Structure version.  <a href="group__StatusCodes.html#ga9ff5ba01b5b62d3996d2828763ec4a0d">More...</a><br /></td></tr>
 <tr class="separator:ga9ff5ba01b5b62d3996d2828763ec4a0d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gaba12c2015498c1e3751817128323bd43"><td class="memItemLeft" align="right" valign="top">UINT64&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#gaba12c2015498c1e3751817128323bd43">SignalingClientMetrics::signalingStartTime</a></td></tr>
+<tr class="separator:gaba12c2015498c1e3751817128323bd43"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga0cde18706bd721a92d95c6f498447a01"><td class="memItemLeft" align="right" valign="top">UINT64&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#ga0cde18706bd721a92d95c6f498447a01">SignalingClientMetrics::signalingEndTime</a></td></tr>
+<tr class="separator:ga0cde18706bd721a92d95c6f498447a01"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga583ffb902ebef3705cf6683c72e2103e"><td class="memItemLeft" align="right" valign="top">UINT64&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#ga583ffb902ebef3705cf6683c72e2103e">SignalingClientMetrics::signalingCallTime</a></td></tr>
+<tr class="separator:ga583ffb902ebef3705cf6683c72e2103e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga19e455ef17680d69fc2de9f0c886ea80"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structSignalingClientStats.html">SignalingClientStats</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__StatusCodes.html#ga19e455ef17680d69fc2de9f0c886ea80">SignalingClientMetrics::signalingClientStats</a></td></tr>
 <tr class="memdesc:ga19e455ef17680d69fc2de9f0c886ea80"><td class="mdescLeft">&#160;</td><td class="mdescRight">Signaling client metrics stats. Reference in <a class="el" href="Stats_8h.html">Stats.h</a>.  <a href="group__StatusCodes.html#ga19e455ef17680d69fc2de9f0c886ea80">More...</a><br /></td></tr>
 <tr class="separator:ga19e455ef17680d69fc2de9f0c886ea80"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -716,6 +734,20 @@ Variables</h2></td></tr>
       <table class="memname">
         <tr>
           <td class="memname">#define KINESIS_VIDEO_STUN_URL_POSTFIX_CN&#160;&#160;&#160;&quot;amazonaws.com.cn&quot;</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="ga13238228a0effe4dccc615189c04c73f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga13238228a0effe4dccc615189c04c73f">&#9670;&nbsp;</a></span>KINESIS_VIDEO_STUN_URL_WITHOUT_PORT</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define KINESIS_VIDEO_STUN_URL_WITHOUT_PORT&#160;&#160;&#160;&quot;stun.kinesisvideo.%s.%s&quot;</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -1439,7 +1471,7 @@ Variables</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Ta in <a href="https://tools.ietf.org/html/rfc8445">https://tools.ietf.org/html/rfc8445</a> rate at which binding request packets are sent during connection check. Use default interval if 0. </p>
+<p>Ta in <a href="https://datatracker.ietf.org/doc/html/rfc8445#section-14.2">https://datatracker.ietf.org/doc/html/rfc8445#section-14.2</a> rate at which binding request packets are sent during connection check. Use default interval if 0. </p>
 
 </div>
 </div>
@@ -2180,6 +2212,37 @@ Variables</h2></td></tr>
 
 </div>
 </div>
+<a id="ga520de785dce77b50a14f12afbe7768e5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga520de785dce77b50a14f12afbe7768e5">&#9670;&nbsp;</a></span>rollingBufferBitratebps</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">DOUBLE RtcRtpTransceiverInit::rollingBufferBitratebps</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Maximum expected bitrate of media (In bits/second). It is used to determine the buffer capacity. The lowest allowed is 100 Kbps </p>
+
+</div>
+</div>
+<a id="gace8bf7741e34e83480a207bf14d61c98"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gace8bf7741e34e83480a207bf14d61c98">&#9670;&nbsp;</a></span>rollingBufferDurationSec</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">DOUBLE RtcRtpTransceiverInit::rollingBufferDurationSec</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Maximum duration of media that needs to be buffered (in seconds). The lowest allowed is 0.1 seconds (100ms) </p>
+
+</div>
+</div>
 <a id="ga5427abf5f6370d371acb461a1bd36061"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ga5427abf5f6370d371acb461a1bd36061">&#9670;&nbsp;</a></span>rtcIceCandidatePairStats</h2>
 
@@ -2307,6 +2370,20 @@ Variables</h2></td></tr>
 
 </div>
 </div>
+<a id="ga583ffb902ebef3705cf6683c72e2103e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga583ffb902ebef3705cf6683c72e2103e">&#9670;&nbsp;</a></span>signalingCallTime</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">UINT64 SignalingClientMetrics::signalingCallTime</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="gafaf099a0c85ede248da1ef35bea2bf5c"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#gafaf099a0c85ede248da1ef35bea2bf5c">&#9670;&nbsp;</a></span>signalingClientCreationMaxRetryAttempts</h2>
 
@@ -2339,6 +2416,20 @@ Variables</h2></td></tr>
 
 </div>
 </div>
+<a id="ga0cde18706bd721a92d95c6f498447a01"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga0cde18706bd721a92d95c6f498447a01">&#9670;&nbsp;</a></span>signalingEndTime</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">UINT64 SignalingClientMetrics::signalingEndTime</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="gadffadd7d879a948434b9fa7904eb5358"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#gadffadd7d879a948434b9fa7904eb5358">&#9670;&nbsp;</a></span>signalingMessage</h2>
 
@@ -2366,6 +2457,8 @@ Variables</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Unused field post v1.8.1. </p>
+
 </div>
 </div>
 <a id="ga1f6bfce0b61a782b35f735370544aadc"></a>
@@ -2379,6 +2472,8 @@ Variables</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Unused field post v1.8.1. </p>
 
 </div>
 </div>
@@ -2395,6 +2490,20 @@ Variables</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Retry strategy callbacks used while creating signaling client. </p>
+
+</div>
+</div>
+<a id="gaba12c2015498c1e3751817128323bd43"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gaba12c2015498c1e3751817128323bd43">&#9670;&nbsp;</a></span>signalingStartTime</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">UINT64 SignalingClientMetrics::signalingStartTime</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
 
 </div>
 </div>
@@ -2715,6 +2824,22 @@ Variables</h2></td></tr>
 
 </div>
 </div>
+<a id="gabad78ddf2f8b7fec195ded8d69a74886"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gabad78ddf2f8b7fec195ded8d69a74886">&#9670;&nbsp;</a></span>useTrickleIce</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">BOOL RtcSessionDescriptionInit::useTrickleIce</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Indicates if an offer should set trickle ice. </p>
+
+</div>
+</div>
 <a id="ga19b58ac2436203028cd705d575ab7ea6"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ga19b58ac2436203028cd705d575ab7ea6">&#9670;&nbsp;</a></span>version <span class="overload">[1/12]</span></h2>
 
@@ -2944,7 +3069,7 @@ Variables</h2></td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="footer">Generated on Thu Mar 7 2024 17:55:13 for Amazon Kinesis Webrtc C SDK by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.1 </li>
+    <li class="footer">Generated on Fri Mar 8 2024 01:26:27 for Amazon Kinesis Webrtc C SDK by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.1 </li>
   </ul>
 </div>
 </body>

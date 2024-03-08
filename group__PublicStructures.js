@@ -48,7 +48,8 @@ var group__PublicStructures =
     ] ],
     [ "RtcSessionDescriptionInit", "structRtcSessionDescriptionInit.html", [
       [ "sdp", "group__StatusCodes.html#ga62c6f63074c9ca7e465cb1bf39854db9", null ],
-      [ "type", "group__StatusCodes.html#ga66e8134ccd2c83b700bbf4e8e6649a6f", null ]
+      [ "type", "group__StatusCodes.html#ga66e8134ccd2c83b700bbf4e8e6649a6f", null ],
+      [ "useTrickleIce", "group__StatusCodes.html#gabad78ddf2f8b7fec195ded8d69a74886", null ]
     ] ],
     [ "RtcIceCandidateInit", "structRtcIceCandidateInit.html", [
       [ "candidate", "group__StatusCodes.html#gadeaea422887b09718e78abb70d0bd476", null ]
@@ -134,7 +135,9 @@ var group__PublicStructures =
       [ "version", "group__StatusCodes.html#ga2654c67d8cf48a3c4eb29e2454109b4d", null ]
     ] ],
     [ "RtcRtpTransceiverInit", "structRtcRtpTransceiverInit.html", [
-      [ "direction", "group__StatusCodes.html#ga6f66c0c096b4ed45b0627ab13e3b2c69", null ]
+      [ "direction", "group__StatusCodes.html#ga6f66c0c096b4ed45b0627ab13e3b2c69", null ],
+      [ "rollingBufferBitratebps", "group__StatusCodes.html#ga520de785dce77b50a14f12afbe7768e5", null ],
+      [ "rollingBufferDurationSec", "group__StatusCodes.html#gace8bf7741e34e83480a207bf14d61c98", null ]
     ] ],
     [ "RtcDataChannelInit", "structRtcDataChannelInit.html", [
       [ "maxPacketLifeTime", "group__StatusCodes.html#gad2859a6cb8bd37238ff551227a242154", null ],
