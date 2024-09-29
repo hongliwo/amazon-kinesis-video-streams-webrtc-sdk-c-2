@@ -150,14 +150,11 @@ $(document).ready(function(){initNavTree('globals_d.html',''); initResizable(); 
 <li>DEFAULT_CREATE_SIGNALING_CLIENT_RETRY_ATTEMPTS
 : <a class="el" href="Signaling_8h.html#a7f261a4a48d60e84a1858c5d6cbdb7df">Signaling.h</a>
 </li>
-<li>DEFAULT_EXPECTED_AUDIO_BIT_RATE
-: <a class="el" href="Rtp_8h.html#a6a56d72374fc3359a1b8751aa0933fcd">Rtp.h</a>
-</li>
-<li>DEFAULT_EXPECTED_VIDEO_BIT_RATE
-: <a class="el" href="Rtp_8h.html#af88c4b83fa17ed806ccb9d8d2447e686">Rtp.h</a>
-</li>
 <li>DEFAULT_H264_FMTP
 : <a class="el" href="SessionDescription_8h.html#a32bb083279e6043b75c6cd2b49dfce7f">SessionDescription.h</a>
+</li>
+<li>DEFAULT_H265_FMTP
+: <a class="el" href="SessionDescription_8h.html#abe819450fdff1798511d8f06111bc518">SessionDescription.h</a>
 </li>
 <li>DEFAULT_JITTER_BUFFER_MAX_LATENCY
 : <a class="el" href="group__Timeouts.html#ga68734a4d3e800489c25681de0f08259e">Include.h</a>
@@ -165,8 +162,8 @@ $(document).ready(function(){initNavTree('globals_d.html',''); initResizable(); 
 <li>DEFAULT_MAX_STORED_TRANSACTION_ID_COUNT
 : <a class="el" href="IceUtils_8h.html#a46069ecb8c1f3484349fa0f14de20581">IceUtils.h</a>
 </li>
-<li>DEFAULT_MTU_SIZE_BYTES
-: <a class="el" href="Rtp_8h.html#a6d63843d01692139cae9a72c515dde5c">Rtp.h</a>
+<li>DEFAULT_MTU_SIZE
+: <a class="el" href="Rtp_8h.html#ab463e7cce50e0fa472b4b08ac0fe258c">Rtp.h</a>
 </li>
 <li>DEFAULT_NAT_TEST_MAX_BINDING_REQUEST_COUNT
 : <a class="el" href="NatBehaviorDiscovery_8h.html#a9ab048e7c35895d98b00122e596faa3c">NatBehaviorDiscovery.h</a>
@@ -182,6 +179,9 @@ $(document).ready(function(){initNavTree('globals_d.html',''); initResizable(); 
 </li>
 <li>DEFAULT_PAYLOAD_H264
 : <a class="el" href="SessionDescription_8h.html#a6c1fe7534dc3ad5995237404a6d8e2bf">SessionDescription.h</a>
+</li>
+<li>DEFAULT_PAYLOAD_H265
+: <a class="el" href="SessionDescription_8h.html#ad57250cb723db6aacaf72fbbc14171ed">SessionDescription.h</a>
 </li>
 <li>DEFAULT_PAYLOAD_MULAW
 : <a class="el" href="SessionDescription_8h.html#aff680be6d95a4bf4f93ab35b1a7dc55f">SessionDescription.h</a>
@@ -295,6 +295,10 @@ $(document).ready(function(){initNavTree('globals_d.html',''); initResizable(); 
 : <a class="el" href="RtpH264Payloader_8c.html#a208df336719f0062f7a201a059501277">RtpH264Payloader.c</a>
 , <a class="el" href="RtpH264Payloader_8h.html#aef0c860678cf90af0a23fb95fc45e804">RtpH264Payloader.h</a>
 </li>
+<li>depayH265FromRtpPayload()
+: <a class="el" href="RtpH265Payloader_8c.html#a57c133a8e18d0fa867ee7e6383dd2600">RtpH265Payloader.c</a>
+, <a class="el" href="RtpH265Payloader_8h.html#aaac402441a16fdc484312abd5fb25c37">RtpH265Payloader.h</a>
+</li>
 <li>depayOpusFromRtpPayload()
 : <a class="el" href="RtpOpusPayloader_8c.html#a6c4cd2c97d694c20f515b405d635917c">RtpOpusPayloader.c</a>
 , <a class="el" href="RtpOpusPayloader_8h.html#acdb33e6b32dbfbaeee768ac5a27700cc">RtpOpusPayloader.h</a>
@@ -327,8 +331,8 @@ $(document).ready(function(){initNavTree('globals_d.html',''); initResizable(); 
 , <a class="el" href="LwsApiCalls_8h.html#a43ec97f014828e5f79d1cae0587f69f6">LwsApiCalls.h</a>
 </li>
 <li>describeMediaStorageConf()
-: <a class="el" href="Signaling_8h.html#a43badb8f759c3188d85815c8d946587d">Signaling.h</a>
-, <a class="el" href="Signaling_8c.html#ae04ffc37a82734d0d466e46107e33d14">Signaling.c</a>
+: <a class="el" href="Signaling_8c.html#ae04ffc37a82734d0d466e46107e33d14">Signaling.c</a>
+, <a class="el" href="Signaling_8h.html#a43badb8f759c3188d85815c8d946587d">Signaling.h</a>
 </li>
 <li>describeMediaStorageConfLws()
 : <a class="el" href="LwsApiCalls_8c.html#acdaa33c690bca9bdcf5addf3f96cc699">LwsApiCalls.c</a>
@@ -530,7 +534,7 @@ $(document).ready(function(){initNavTree('globals_d.html',''); initResizable(); 
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="footer">Generated on Fri Mar 8 2024 01:26:27 for Amazon Kinesis Webrtc C SDK by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.1 </li>
+    <li class="footer">Generated on Sun Sep 29 2024 17:24:04 for Amazon Kinesis Webrtc C SDK by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.1 </li>
   </ul>
 </div>
 </body>
