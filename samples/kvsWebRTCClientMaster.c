@@ -30,14 +30,16 @@ INT32 main(INT32 argc, CHAR* argv[])
     CHK_STATUS(createSampleConfiguration(pChannelName, SIGNALING_CHANNEL_ROLE_TYPE_MASTER, TRUE, TRUE, logLevel, &pSampleConfiguration));
 
     if (argc > 3) {
-        if (!STRCMP(argv[3], AUDIO_CODEC_NAME_OPUS)) {
-            audioCodec = RTC_CODEC_OPUS;
+        if (!STRCMP(argv[3], AUDIO_CODEC_NAME_AAC)) {
+            audioCodec = RTC_CODEC_AAC;
+            DLOGI("[KVS Master] Set audioCodec AAC");
         }
     }
 
     if (argc > 4) {
         if (!STRCMP(argv[4], VIDEO_CODEC_NAME_H265)) {
             videoCodec = RTC_CODEC_H265;
+            DLOGI("[KVS Master] Set videoCodec H265");
         } else {
             DLOGI("[KVS Master] Defaulting to H264 as the specified codec's sample frames may not be available");
         }
@@ -73,7 +75,10 @@ INT32 main(INT32 argc, CHAR* argv[])
     if (audioCodec == RTC_CODEC_OPUS) {
         CHK_STATUS(readFrameFromDisk(NULL, &frameSize, "./opusSampleFrames/sample-001.opus"));
         DLOGI("[KVS Master] Checked Opus sample audio frame availability....available");
-    }
+    } else if (audioCodec == RTC_CODEC_AAC) {
+		CHK_STATUS(readFrameFromDisk(NULL, &frameSize, "./aacSampleFrames/sample-001.aac"));
+		DLOGI("[KVS Master] Checked AAC sample audio frame availability....available");
+	}
 
     // Initialize KVS WebRTC. This must be done before anything else, and must only be done once.
     CHK_STATUS(initKvsWebRtc());
@@ -246,11 +251,14 @@ PVOID sendAudioPackets(PVOID args)
     frame.presentationTs = 0;
 
     while (!ATOMIC_LOAD_BOOL(&pSampleConfiguration->appTerminateFlag)) {
-        fileIndex = fileIndex % NUMBER_OF_OPUS_FRAME_FILES + 1;
 
         if (pSampleConfiguration->audioCodec == RTC_CODEC_OPUS) {
+			fileIndex = fileIndex % NUMBER_OF_OPUS_FRAME_FILES + 1;
             SNPRINTF(filePath, MAX_PATH_LEN, "./opusSampleFrames/sample-%03d.opus", fileIndex);
-        }
+        } else if (pSampleConfiguration->audioCodec == RTC_CODEC_AAC) {
+			fileIndex = fileIndex % NUMBER_OF_AAC_FRAME_FILES + 1;
+			SNPRINTF(filePath, MAX_PATH_LEN, "./aacSampleFrames/sample-%03d.aac", fileIndex);
+		}
 
         CHK_STATUS(readFrameFromDisk(NULL, &frameSize, filePath));
 
@@ -266,7 +274,13 @@ PVOID sendAudioPackets(PVOID args)
 
         CHK_STATUS(readFrameFromDisk(frame.frameData, &frameSize, filePath));
 
-        frame.presentationTs += SAMPLE_AUDIO_FRAME_DURATION;
+        if (pSampleConfiguration->audioCodec == RTC_CODEC_OPUS) {
+			frame.presentationTs += SAMPLE_AUDIO_FRAME_DURATION;
+        } else if (pSampleConfiguration->audioCodec == RTC_CODEC_AAC) {
+			frame.presentationTs += SAMPLE_AUDIO_FRAME_DURATION_AAC;
+		}
+
+
 
         MUTEX_LOCK(pSampleConfiguration->streamingSessionListReadLock);
         for (i = 0; i < pSampleConfiguration->streamingSessionCount; ++i) {
@@ -284,7 +298,12 @@ PVOID sendAudioPackets(PVOID args)
             }
         }
         MUTEX_UNLOCK(pSampleConfiguration->streamingSessionListReadLock);
-        THREAD_SLEEP(SAMPLE_AUDIO_FRAME_DURATION);
+        
+        if (pSampleConfiguration->audioCodec == RTC_CODEC_OPUS) {
+			THREAD_SLEEP(SAMPLE_AUDIO_FRAME_DURATION);
+        } else if (pSampleConfiguration->audioCodec == RTC_CODEC_AAC) {
+			THREAD_SLEEP(SAMPLE_AUDIO_FRAME_DURATION_AAC);
+		}
     }
 
 CleanUp:
